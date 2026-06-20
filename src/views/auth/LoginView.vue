@@ -58,7 +58,7 @@ async function handleSubmit() {
 <template>
   <AuthSurveyLayout>
     <div class="card-header">
-      <h1 class="brand-title">FinFit</h1>
+      <h1 class="brand-title" style="cursor:pointer" @click="router.push('/')">FinFit</h1>
       <p class="welcome-text">에 다시 오신 것을 환영합니다 !</p>
     </div>
 
