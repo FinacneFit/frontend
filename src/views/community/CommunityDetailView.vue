@@ -4,17 +4,20 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
+import UserProfileModal from '@/components/UserProfileModal.vue'
+import profileImg from '@/assets/profile.svg'
 
-const route = useRoute()
-const router = useRouter()
+const route          = useRoute()
+const router         = useRouter()
 const communityStore = useCommunityStore()
-const authStore = useAuthStore()
+const authStore      = useAuthStore()
 
 const post = computed(() => communityStore.getPost(route.params.postId))
 const commentText = ref('')
 
-const nickname = authStore.user?.nickname ?? '이서현'
-const initial = nickname.charAt(0)
+const myId    = computed(() => authStore.user?.id ?? 99)
+const nickname = computed(() => authStore.user?.nickname ?? '이서현')
+const initial  = computed(() => nickname.value.charAt(0))
 
 function toggleLike() {
   if (!post.value) return
@@ -24,7 +27,7 @@ function toggleLike() {
 function addComment() {
   const text = commentText.value.trim()
   if (!text || !post.value) return
-  communityStore.addComment(post.value.id, text, nickname, initial)
+  communityStore.addComment(post.value.id, text, nickname.value, initial.value, myId.value)
   commentText.value = ''
 }
 
@@ -32,6 +35,15 @@ function deleteComment(commentId) {
   if (!post.value) return
   communityStore.deleteComment(post.value.id, commentId)
 }
+
+// 프로필 모달
+const selectedUserId = ref(null)
+function openProfile(authorId) {
+  if (!authorId) return
+  if (authorId === myId.value) { router.push('/mypage'); return }
+  selectedUserId.value = authorId
+}
+function closeProfile() { selectedUserId.value = null }
 </script>
 
 <template>
@@ -44,8 +56,8 @@ function deleteComment(commentId) {
           <h1 class="detail-title">{{ post.title }}</h1>
 
           <div class="author-row">
-            <button class="author-btn" @click="router.push('/mypage')">
-              <div class="avatar-sm">{{ post.authorInitial }}</div>
+            <button class="author-btn" @click="openProfile(post.authorId)">
+              <img :src="profileImg" class="avatar-sm" alt="profile" />
               <span class="author-name">{{ post.author }}</span>
             </button>
             <span class="risk-badge">{{ post.riskType }}</span>
@@ -66,13 +78,15 @@ function deleteComment(commentId) {
           <p class="comments-heading">댓글 {{ post.comments.length }}</p>
           <div class="comment-list">
             <div v-for="c in post.comments" :key="c.id" class="comment-item">
-              <div class="avatar-sm">{{ c.authorInitial }}</div>
+              <button class="avatar-btn" @click="openProfile(c.authorId)">
+                <img :src="profileImg" class="avatar-sm" alt="profile" />
+              </button>
               <div class="comment-body">
-                <p class="comment-author">{{ c.author }}</p>
+                <button class="comment-author-btn" @click="openProfile(c.authorId)">{{ c.author }}</button>
                 <p class="comment-text">{{ c.text }}</p>
               </div>
               <button
-                v-if="c.author === nickname"
+                v-if="c.authorId === myId"
                 class="del-comment"
                 @click="deleteComment(c.id)"
               >삭제</button>
@@ -82,6 +96,13 @@ function deleteComment(commentId) {
         </div>
         <div v-else class="not-found">게시글을 찾을 수 없습니다.</div>
       </div>
+
+      <!-- UserProfileModal -->
+      <UserProfileModal
+        v-if="selectedUserId !== null"
+        :userId="selectedUserId"
+        @close="closeProfile"
+      />
 
       <!-- 댓글 입력 고정 하단 -->
       <div v-if="post" class="comment-input-row">
@@ -118,9 +139,7 @@ function deleteComment(commentId) {
 .author-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 0; }
 .avatar-sm {
   width: 28px; height: 28px; border-radius: 50%;
-  background: linear-gradient(135deg, #1b78fd, #2adbc6);
-  color: #fff; font-weight: 700; font-size: 11px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  object-fit: cover; flex-shrink: 0; display: block;
 }
 .author-name { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 600; }
 .risk-badge { font-size: 12px; color: #1b78fd; background: rgba(27,120,253,0.1); border-radius: 6px; padding: 2px 8px; }
@@ -143,7 +162,13 @@ function deleteComment(commentId) {
 .comment-list { display: flex; flex-direction: column; gap: 12px; }
 .comment-item { display: flex; align-items: flex-start; gap: 10px; }
 .comment-body { flex: 1; }
-.comment-author { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 13px; }
+.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; }
+.avatar-btn:hover { opacity: 0.8; }
+.comment-author-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 13px; color: #111827;
+}
+.comment-author-btn:hover { color: #1b78fd; text-decoration: underline; }
 .comment-text { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; margin-top: 2px; }
 .del-comment { background: none; border: none; font-size: 12px; color: #9ca3af; cursor: pointer; flex-shrink: 0; }
 .del-comment:hover { color: #ef4444; }

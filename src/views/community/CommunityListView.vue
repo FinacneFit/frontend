@@ -1,13 +1,17 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useSurveyStore } from '@/stores/surveyStore'
+import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
+import UserProfileModal from '@/components/UserProfileModal.vue'
+import profileImg from '@/assets/profile.svg'
 
-const router = useRouter()
+const router         = useRouter()
 const communityStore = useCommunityStore()
-const surveyStore = useSurveyStore()
+const surveyStore    = useSurveyStore()
+const authStore      = useAuthStore()
 
 const activeFilter = computed(() => communityStore.activeFilter)
 const posts = computed(() => communityStore.filteredPosts)
@@ -15,6 +19,15 @@ const heading = computed(() => {
   const t = activeFilter.value ?? surveyStore.resultType ?? '전체'
   return activeFilter.value ? t : '전체'
 })
+
+const selectedUserId = ref(null)
+function openProfile(authorId) {
+  if (!authorId) return
+  const myId = authStore.user?.id ?? 99
+  if (authorId === myId) { router.push('/mypage'); return }
+  selectedUserId.value = authorId
+}
+function closeProfile() { selectedUserId.value = null }
 </script>
 
 <template>
@@ -36,8 +49,8 @@ const heading = computed(() => {
           <p class="post-title">{{ post.title }}</p>
           <p class="post-content">{{ post.content }}</p>
           <div class="post-meta">
-            <div class="author-row">
-              <div class="mini-avatar">{{ post.authorInitial }}</div>
+            <div class="author-row" @click.stop="openProfile(post.authorId)">
+              <img :src="profileImg" class="mini-avatar" alt="profile" />
               <span class="author-name">{{ post.author }}</span>
             </div>
             <div class="meta-stats">
@@ -51,6 +64,12 @@ const heading = computed(() => {
       <p v-if="!posts.length" class="empty">해당 성향의 게시글이 없습니다.</p>
     </div>
   </CommunityLayout>
+
+  <UserProfileModal
+    v-if="selectedUserId !== null"
+    :userId="selectedUserId"
+    @close="closeProfile"
+  />
 </template>
 
 <style scoped>
@@ -107,13 +126,8 @@ const heading = computed(() => {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1b78fd, #2adbc6);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .author-name { font-size: 12px; font-family: 'Noto Sans KR', sans-serif; }
 .meta-stats { display: flex; gap: 10px; font-size: 12px; color: #787878; }

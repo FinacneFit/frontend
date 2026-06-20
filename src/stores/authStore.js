@@ -48,5 +48,10 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.token = null
     },
+
+    /** 한 줄 소개 업데이트 (mock: 로컬 상태만) */
+    updateBio(bio) {
+      if (this.user) this.user.bio = bio
+    },
   },
 })
