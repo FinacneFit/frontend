@@ -1,7 +1,13 @@
+<script setup>
+defineProps({
+  wide: { type: Boolean, default: false },
+})
+</script>
+
 <template>
   <div class="auth-bg">
     <div class="auth-card-wrapper">
-      <div class="auth-card">
+      <div class="auth-card" :class="{ 'auth-card--wide': wide }">
         <slot />
       </div>
     </div>
@@ -34,5 +40,9 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+.auth-card--wide {
+  width: 672px;
 }
 </style>
