@@ -24,9 +24,9 @@ const resultType  = computed(() => surveyStore.resultType ?? '미설정')
 const riskScore   = computed(() => surveyStore.riskScore ?? 0)
 const initial     = computed(() => nickname.value.charAt(0))
 
-// 점수 5~40 → 0~100% 변환
+// 점수 15~120 → 0~100% 변환
 const scoreBarWidth = computed(() => {
-  const pct = Math.round(((riskScore.value - 5) / 35) * 100)
+  const pct = Math.round(((riskScore.value - 15) / 105) * 100)
   return `${Math.min(Math.max(pct, 0), 100)}%`
 })
 
