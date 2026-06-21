@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
@@ -61,10 +61,19 @@ async function handleConfirm({ stock, qty, buyPrice }) {
   await portfolioStore.addHolding(stock, qty, buyPrice)
 }
 
+let _recTimer = null
+
 onMounted(() => {
   authStore.refreshMe()
   portfolioStore.loadPortfolio()
+  portfolioStore.startPolling()
   loadRecommended()
+  _recTimer = setInterval(loadRecommended, 60_000)
+})
+
+onUnmounted(() => {
+  portfolioStore.stopPolling()
+  if (_recTimer) { clearInterval(_recTimer); _recTimer = null }
 })
 </script>
 

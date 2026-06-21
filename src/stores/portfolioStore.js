@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import { portfolioApi } from '@/api/portfolioApi'
 
-// 백엔드 HoldingSerializer 응답: { id, stock_id, name, code, category, qty, buy_price, current_price }
-// value / invested / returnRate / proportion 은 프론트에서 계산
 function mapHolding(h, totalValue = 0) {
   const invested   = h.buy_price    * h.qty
   const value      = h.current_price * h.qty
@@ -25,6 +23,9 @@ function mapHolding(h, totalValue = 0) {
   }
 }
 
+// 폴링 타이머 (스토어 외부에서 모듈 레벨로 관리)
+let _pollTimer = null
+
 export const usePortfolioStore = defineStore('portfolio', {
   state: () => ({
     holdings:        [],
@@ -46,10 +47,7 @@ export const usePortfolioStore = defineStore('portfolio', {
       try {
         const data = await portfolioApi.getPortfolio()
         const raw  = data.holdings ?? []
-
-        // 비율 계산을 위해 totalValue 먼저 구함
         const totalValue = raw.reduce((s, h) => s + h.current_price * h.qty, 0)
-
         this.holdings        = raw.map((h) => mapHolding(h, totalValue))
         this.totalInvested   = data.total_invested ?? 0
         this.totalValue      = data.total_value    ?? totalValue
@@ -59,6 +57,20 @@ export const usePortfolioStore = defineStore('portfolio', {
         console.error('포트폴리오 로드 실패:', err)
       } finally {
         this.isLoading = false
+      }
+    },
+
+    // 1분마다 자동 갱신 시작
+    startPolling() {
+      if (_pollTimer) return
+      _pollTimer = setInterval(() => this.loadPortfolio(), 60_000)
+    },
+
+    // 폴링 중단 (뷰 언마운트 시 호출)
+    stopPolling() {
+      if (_pollTimer) {
+        clearInterval(_pollTimer)
+        _pollTimer = null
       }
     },
 
