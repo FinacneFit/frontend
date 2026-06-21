@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
+import { surveyApi } from '@/api/surveyApi'
+import { mockSurveyQuestions } from '@/data/mockSurveyQuestions'
+import { useAuthStore } from '@/stores/authStore'
 
+// 15문항 × (1/3/6/8)점 → 범위 15~120
 const RESULT_TYPES = [
   {
     minScore: 15,
@@ -38,26 +42,37 @@ const RESULT_TYPES = [
   },
 ]
 
+// mock 데이터에 choice.id 부여 (백엔드 fixture pk 와 일치: qi*4 + ci + 1)
+const QUESTIONS = mockSurveyQuestions.map((q, qi) => ({
+  ...q,
+  choices: q.choices.map((c, ci) => ({ ...c, id: qi * 4 + ci + 1 })),
+}))
+
+function localCalc(answers) {
+  const score = answers.reduce((s, a) => s + (a?.score ?? 0), 0)
+  const found = RESULT_TYPES.find((r) => score >= r.minScore && score <= r.maxScore)
+  return {
+    riskScore:         score,
+    resultType:        found?.type        ?? '위험중립형',
+    resultDescription: found?.description ?? '위험과 수익 사이의 균형을 추구합니다.',
+  }
+}
+
 export const useSurveyStore = defineStore('survey', {
   state: () => ({
-    questions: [],
+    questions:            QUESTIONS,   // mock 데이터 고정 — 항상 15개
     currentQuestionIndex: 0,
-    answers: [],
-    riskScore: 0,
-    resultType: null,
-    resultDescription: null,
-    isSubmitting: false,
+    answers:              [],
+    riskScore:            0,
+    resultType:           null,
+    resultDescription:    null,
+    isSubmitting:         false,
   }),
 
   actions: {
-    async loadQuestions() {
-      if (this.questions.length) return
-      try {
-        this.questions = await surveyApi.getQuestions()
-      } catch (err) {
-        console.error('설문 문항 로드 실패:', err)
-      }
-    },
+    // 문항은 mock 고정이므로 별도 로드 불필요.
+    // SurveyQuestionView에서 onMounted 시 이 함수를 호출하지만 아무것도 하지 않아도 됨.
+    loadQuestions() {},
 
     setAnswer(questionIndex, choiceIndex, score, choiceId, questionId) {
       this.answers[questionIndex] = { questionIndex, choiceIndex, score, choiceId, questionId }
@@ -65,28 +80,36 @@ export const useSurveyStore = defineStore('survey', {
 
     async calculateResult() {
       this.isSubmitting = true
+
+      // 1) 로컬 계산 — 즉시 결과 확정
+      const local            = localCalc(this.answers)
+      this.riskScore         = local.riskScore
+      this.resultType        = local.resultType
+      this.resultDescription = local.resultDescription
+
+      // 2) 백엔드에 결과 저장 시도 (실패해도 로컬 결과 유지)
       try {
-        const answers = this.answers.map((a) => ({
+        const apiAnswers = this.answers.map((a) => ({
           question_id: a.questionId,
-          choice_id: a.choiceId,
+          choice_id:   a.choiceId,
         }))
-        const result = await surveyApi.submit(answers)
+        const result = await surveyApi.submit(apiAnswers)
         this.riskScore         = result.risk_score
         this.resultType        = result.result_type
         this.resultDescription = result.result_description
-      } catch (err) {
-        const score = this.answers.reduce((s, a) => s + (a?.score ?? 0), 0)
-        this.riskScore = score
-        const TYPES = [
-          [5,  12, '안정형',     '안정성을 최우선으로 여기며 원금 보전에 집중합니다.'],
-          [13, 20, '안정추구형', '안정성을 추구하며 소폭의 수익을 선호합니다.'],
-          [21, 28, '위험중립형', '위험과 수익 사이의 균형을 추구합니다.'],
-          [29, 34, '적극투자형', '높은 수익을 위해 어느 정도의 위험을 감수합니다.'],
-          [35, 40, '공격투자형', '고위험 고수익을 추구하며 공격적으로 투자합니다.'],
-        ]
-        const found = TYPES.find(([min, max]) => score >= min && score <= max)
-        this.resultType        = found?.[2] ?? '위험중립형'
-        this.resultDescription = found?.[3] ?? '위험과 수익 사이의 균형을 추구합니다.'
+
+        // authStore.user에도 즉시 반영 (페이지 이동/새로고침 전에도 점수 표시)
+        const authStore = useAuthStore()
+        if (authStore.user) {
+          authStore.user = {
+            ...authStore.user,
+            risk_score:      result.risk_score,
+            investment_type: result.result_type,
+          }
+          localStorage.setItem('finfit_user', JSON.stringify(authStore.user))
+        }
+      } catch (_) {
+        // 로컬 계산 결과 그대로 사용
       } finally {
         this.isSubmitting = false
       }

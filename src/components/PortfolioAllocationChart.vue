@@ -67,7 +67,7 @@ const segments = computed(() => {
   let cumul = 0
   return data.map(item => {
     const dashLen    = Math.max(0, (item.pct / 100) * C - GAP)
-    const dashOffset = C * (1 - cumul / 100)
+    const dashOffset = -((cumul / 100) * C)
     cumul += item.pct
     return {
       color:      item.color,

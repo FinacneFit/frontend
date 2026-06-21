@@ -62,6 +62,7 @@ async function handleConfirm({ stock, qty, buyPrice }) {
 }
 
 onMounted(() => {
+  authStore.refreshMe()
   portfolioStore.loadPortfolio()
   loadRecommended()
 })

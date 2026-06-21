@@ -1,22 +1,34 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
 import { useCommunityStore } from '@/stores/communityStore'
 import logoImg from '@/assets/logo.png'
 
 const router = useRouter()
+const route  = useRoute()
 const authStore = useAuthStore()
 const surveyStore = useSurveyStore()
 const communityStore = useCommunityStore()
 
-const RISK_TYPES = ['안전추구형', '공격투자형', '위험중립형']
+const RISK_TYPES = ['안정형', '안정추구형', '위험중립형', '적극투자형', '공격투자형']
 
-const nickname = authStore.user?.nickname ?? '사용자'
-const resultType = surveyStore.resultType ?? '안정추구형'
-const initial = nickname.charAt(0)
+const nickname   = computed(() => authStore.user?.nickname ?? '사용자')
+const resultType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '')
+const initial    = computed(() => nickname.value.charAt(0))
 
 function logout() { authStore.logout(); router.push('/login') }
+
+function clearFilter() {
+  communityStore.activeFilter = null
+  if (route.path !== '/community') router.push('/community')
+}
+
+function handleFilter(type) {
+  communityStore.setFilter(type)
+  if (route.path !== '/community') router.push('/community')
+}
 </script>
 
 <template>
@@ -43,34 +55,49 @@ function logout() { authStore.logout(); router.push('/login') }
       </div>
     </header>
 
-    <!-- 바디 -->
-    <div class="comm-body">
-      <!-- 사이드바 -->
-      <aside class="comm-sidebar">
-        <div class="sidebar-top">
-          <p class="filter-title">필터</p>
-          <div class="filter-list">
-            <button
-              v-for="type in RISK_TYPES"
-              :key="type"
-              class="filter-btn"
-              :class="{ active: communityStore.activeFilter === type }"
-              @click="communityStore.setFilter(type)"
-            >
-              {{ type }}
-            </button>
+    <!-- 바디 (메인 페이지와 동일한 max-width) -->
+    <div class="comm-body-outer">
+      <div class="comm-body">
+        <!-- 사이드바 -->
+        <aside class="comm-sidebar">
+          <div class="sidebar-top">
+            <p class="filter-title">성향 필터</p>
+            <div class="filter-list">
+              <!-- 전체 보기 -->
+              <button
+                class="filter-btn all-btn"
+                :class="{ active: !communityStore.activeFilter }"
+                @click="clearFilter"
+              >
+                전체
+              </button>
+              <!-- 5개 성향 -->
+              <button
+                v-for="type in RISK_TYPES"
+                :key="type"
+                class="filter-btn"
+                :class="{
+                  active: communityStore.activeFilter === type,
+                  mine: resultType === type && communityStore.activeFilter !== type,
+                }"
+                @click="handleFilter(type)"
+              >
+                {{ type }}
+                <span v-if="resultType === type" class="my-badge">내 성향</span>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="sidebar-actions">
-          <button class="btn-write" @click="router.push('/community/create')">글쓰기</button>
-          <button class="btn-my" @click="router.push('/community/my')">내가 쓴 글</button>
-        </div>
-      </aside>
+          <div class="sidebar-actions">
+            <button class="btn-write" @click="router.push('/community/create')">글쓰기</button>
+            <button class="btn-my" @click="router.push('/community/my')">내가 쓴 글</button>
+          </div>
+        </aside>
 
-      <!-- 콘텐츠 -->
-      <main class="comm-content">
-        <slot />
-      </main>
+        <!-- 콘텐츠 -->
+        <main class="comm-content">
+          <slot />
+        </main>
+      </div>
     </div>
   </div>
 </template>
@@ -84,7 +111,7 @@ function logout() { authStore.logout(); router.push('/login') }
   font-family: 'Noto Sans KR', sans-serif;
 }
 
-/* 헤더 */
+/* ── 헤더 ── */
 .comm-header {
   height: 68px;
   border-bottom: 1px solid #000;
@@ -102,58 +129,44 @@ function logout() { authStore.logout(); router.push('/login') }
 .comm-label { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 18px; }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .btn-home {
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 9px 17px;
-  background: #fff;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  border: 1px solid #e5e7eb; border-radius: 14px; padding: 9px 17px;
+  background: #fff; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
 }
 .btn-home:hover { border-color: #1b78fd; }
 .btn-logout {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 7px 13px;
-  background: #fff;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 12px;
-  color: #787878;
-  cursor: pointer;
+  border: 1px solid #e5e7eb; border-radius: 10px; padding: 7px 13px;
+  background: #fff; font-family: 'Noto Sans KR', sans-serif; font-size: 12px; color: #787878; cursor: pointer;
 }
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
+.user-info { display: flex; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; padding: 0; }
 .user-text { display: flex; flex-direction: column; align-items: flex-end; }
 .user-name { font-weight: 700; font-size: 14px; }
 .name-blue { color: #1b78fd; }
 .user-type { font-size: 11px; color: #787878; }
 .avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 38px; height: 38px; border-radius: 50%;
   background: linear-gradient(135deg, #1b78fd, #2adbc6);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #fff; font-weight: 700; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
 }
 
-/* 바디 */
-.comm-body { display: flex; flex: 1; overflow: hidden; }
+/* ── 바디 outer: 메인 페이지와 동일한 max-width ── */
+.comm-body-outer {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 
-/* 사이드바 */
+.comm-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  max-width: 1480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── 사이드바 ── */
 .comm-sidebar {
   width: 280px;
   border-right: 1px solid #e5e7eb;
@@ -163,52 +176,41 @@ function logout() { authStore.logout(); router.push('/login') }
   padding: 20px;
   flex-shrink: 0;
 }
-.filter-title { font-weight: 700; font-size: 16px; margin-bottom: 12px; }
-.filter-list { display: flex; flex-direction: column; gap: 8px; }
+.filter-title { font-weight: 700; font-size: 15px; color: #374151; margin-bottom: 10px; }
+.filter-list { display: flex; flex-direction: column; gap: 6px; }
+
 .filter-btn {
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 14px;
-  background: rgba(27, 120, 253, 0.1);
-  font-family: 'Noto Sans KR', sans-serif;
-  font-weight: 700;
-  font-size: 16px;
-  color: #000;
-  text-align: left;
-  padding: 0 16px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  width: 100%; height: 44px;
+  border: none; border-radius: 12px;
+  background: rgba(27, 120, 253, 0.08);
+  font-family: 'Noto Sans KR', sans-serif; font-weight: 600; font-size: 14px; color: #374151;
+  text-align: left; padding: 0 14px;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  display: flex; align-items: center; justify-content: space-between;
 }
+.all-btn { background: #f3f4f6; }
 .filter-btn.active { background: #1b78fd; color: #fff; }
-.filter-btn:hover:not(.active) { background: rgba(27, 120, 253, 0.2); }
+.filter-btn.mine { border: 1.5px solid #1b78fd; }
+.filter-btn:hover:not(.active) { background: rgba(27, 120, 253, 0.18); }
+
+.my-badge {
+  font-size: 10px; font-weight: 700; color: #1b78fd;
+  background: #e8f0fe; border-radius: 20px; padding: 2px 7px;
+}
+.filter-btn.active .my-badge { color: #fff; background: rgba(255,255,255,0.25); }
+
 .sidebar-actions { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
 .btn-write {
-  flex: 1;
-  height: 44px;
-  background: #1b78fd;
-  color: #fff;
-  border: none;
-  border-radius: 14px;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
+  flex: 1; height: 44px; background: #1b78fd; color: #fff; border: none;
+  border-radius: 14px; font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .btn-write:hover { opacity: 0.88; }
 .btn-my {
-  flex: 1;
-  height: 44px;
-  background: #fff;
-  border: 1px solid #a9a9a9;
-  border-radius: 14px;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
+  flex: 1; height: 44px; background: #fff; border: 1px solid #a9a9a9;
+  border-radius: 14px; font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .btn-my:hover { border-color: #1b78fd; }
 
-/* 콘텐츠 */
-.comm-content { flex: 1; overflow-y: auto; }
+/* ── 콘텐츠 ── */
+.comm-content { flex: 1; overflow-y: auto; min-width: 0; }
 </style>

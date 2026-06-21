@@ -84,7 +84,10 @@ function closeProfile() { selectedUserId.value = null }
                 <img :src="profileImg" class="avatar-sm" alt="profile" />
               </button>
               <div class="comment-body">
-                <button class="comment-author-btn" @click="openProfile(c.authorId)">{{ c.author }}</button>
+                <div class="comment-author-row">
+                  <button class="comment-author-btn" @click="openProfile(c.authorId)">{{ c.author }}</button>
+                  <span v-if="c.authorId === post.authorId" class="author-badge">작성자</span>
+                </div>
                 <p class="comment-text">{{ c.text }}</p>
               </div>
               <button
@@ -166,12 +169,18 @@ function closeProfile() { selectedUserId.value = null }
 .comment-body { flex: 1; }
 .avatar-btn { background: none; border: none; cursor: pointer; padding: 0; }
 .avatar-btn:hover { opacity: 0.8; }
+.comment-author-row { display: flex; align-items: center; gap: 6px; }
 .comment-author-btn {
   background: none; border: none; cursor: pointer; padding: 0;
   font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 13px; color: #111827;
 }
 .comment-author-btn:hover { color: #1b78fd; text-decoration: underline; }
-.comment-text { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; margin-top: 2px; }
+.author-badge {
+  font-size: 10px; font-weight: 700; color: #1b78fd;
+  background: rgba(27, 120, 253, 0.1); border-radius: 4px;
+  padding: 1px 6px; flex-shrink: 0;
+}
+.comment-text { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; margin-top: 3px; }
 .del-comment { background: none; border: none; font-size: 12px; color: #9ca3af; cursor: pointer; flex-shrink: 0; }
 .del-comment:hover { color: #ef4444; }
 .no-comment { font-size: 13px; color: #9ca3af; text-align: center; padding: 20px; }

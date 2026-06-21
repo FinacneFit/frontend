@@ -20,11 +20,11 @@ function mapPost(p) {
 
 function mapComment(c) {
   return {
-    id:      c.id,
-    text:    c.text,
-    author:  c.author_nickname ?? c.author ?? '알 수 없음',
-    initial: (c.author_nickname ?? c.author ?? '?').charAt(0),
-    myId:    c.author_id,
+    id:       c.id,
+    text:     c.text,
+    author:   c.author_nickname ?? c.author ?? '알 수 없음',
+    initial:  (c.author_nickname ?? c.author ?? '?').charAt(0),
+    authorId: c.author_id,
   }
 }
 

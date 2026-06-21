@@ -1,21 +1,27 @@
 import { defineStore } from 'pinia'
 import { portfolioApi } from '@/api/portfolioApi'
 
-function mapHolding(h) {
+// 백엔드 HoldingSerializer 응답: { id, stock_id, name, code, category, qty, buy_price, current_price }
+// value / invested / returnRate / proportion 은 프론트에서 계산
+function mapHolding(h, totalValue = 0) {
+  const invested   = h.buy_price    * h.qty
+  const value      = h.current_price * h.qty
+  const ret        = value - invested
+  const returnRate = invested > 0 ? (ret / invested) * 100 : 0
   return {
     id:           h.id,
-    stockId:      h.stock.id,
-    name:         h.stock.name,
-    code:         h.stock.code,
-    category:     h.stock.category,
+    stockId:      h.stock_id,
+    name:         h.name,
+    code:         h.code,
+    category:     h.category,
     currentPrice: h.current_price,
     buyPrice:     h.buy_price,
     qty:          h.qty,
-    value:        h.value,
-    invested:     h.invested,
-    return:       h.return,
-    returnRate:   h.return_rate,
-    proportion:   h.proportion,
+    value,
+    invested,
+    return:       ret,
+    returnRate,
+    proportion:   totalValue > 0 ? (value / totalValue) * 100 : 0,
   }
 }
 
@@ -38,12 +44,17 @@ export const usePortfolioStore = defineStore('portfolio', {
     async loadPortfolio() {
       this.isLoading = true
       try {
-        const data           = await portfolioApi.getPortfolio()
-        this.holdings        = (data.holdings ?? []).map(mapHolding)
-        this.totalValue      = data.total_value      ?? 0
-        this.totalInvested   = data.total_invested   ?? 0
-        this.totalReturn     = data.total_return     ?? 0
-        this.totalReturnRate = data.total_return_rate ?? 0
+        const data = await portfolioApi.getPortfolio()
+        const raw  = data.holdings ?? []
+
+        // 비율 계산을 위해 totalValue 먼저 구함
+        const totalValue = raw.reduce((s, h) => s + h.current_price * h.qty, 0)
+
+        this.holdings        = raw.map((h) => mapHolding(h, totalValue))
+        this.totalInvested   = data.total_invested ?? 0
+        this.totalValue      = data.total_value    ?? totalValue
+        this.totalReturn     = this.totalValue - this.totalInvested
+        this.totalReturnRate = data.return_rate    ?? 0
       } catch (err) {
         console.error('포트폴리오 로드 실패:', err)
       } finally {
