@@ -1,6 +1,5 @@
+import { client } from './client'
+
 export const chatApi = {
-  async sendMessage(text) {
-    await new Promise(r => setTimeout(r, 700))
-    return { reply: '' }
-  },
+  sendMessage: (message) => client.post('/chat/message/', { message }),
 }

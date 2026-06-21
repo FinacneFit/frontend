@@ -1,9 +1,12 @@
+import { client } from './client'
+
 export const communityApi = {
-  async getPosts() { await new Promise(r => setTimeout(r, 100)); return [] },
-  async getPost(id) { await new Promise(r => setTimeout(r, 100)); return null },
-  async createPost(data) { await new Promise(r => setTimeout(r, 200)); return data },
-  async deletePost(id) { await new Promise(r => setTimeout(r, 100)); return true },
-  async toggleLike(postId) { await new Promise(r => setTimeout(r, 100)); return true },
-  async addComment(postId, text) { await new Promise(r => setTimeout(r, 100)); return { id: Date.now(), text } },
-  async deleteComment(postId, commentId) { await new Promise(r => setTimeout(r, 100)); return true },
+  getPosts:      (riskType = null) => client.get(`/community/posts/${riskType ? `?risk_type=${encodeURIComponent(riskType)}` : ''}`),
+  getPost:       (id)              => client.get(`/community/posts/${id}/`),
+  getMyPosts:    ()                => client.get('/community/posts/my/'),
+  createPost:    (data)            => client.post('/community/posts/', data),
+  deletePost:    (id)              => client.delete(`/community/posts/${id}/`),
+  toggleLike:    (postId)          => client.post(`/community/posts/${postId}/like/`),
+  addComment:    (postId, text)    => client.post(`/community/posts/${postId}/comments/`, { text }),
+  deleteComment: (postId, cid)     => client.delete(`/community/posts/${postId}/comments/${cid}/`),
 }

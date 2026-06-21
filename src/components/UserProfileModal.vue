@@ -1,10 +1,9 @@
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { useSurveyStore } from '@/stores/surveyStore'
 import { useFollowStore } from '@/stores/followStore'
-import { getUserById } from '@/data/mockUsers'
+import { userApi } from '@/api/userApi'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const props = defineProps({
@@ -14,32 +13,31 @@ const emit = defineEmits(['close'])
 
 const router     = useRouter()
 const authStore  = useAuthStore()
-const surveyStore = useSurveyStore()
 const followStore = useFollowStore()
 
-// 대상 사용자 정보
+const fetchedUser = ref(null)
+
+const isSelf = computed(() => props.userId === authStore.user?.id)
+
 const targetUser = computed(() => {
-  // 내 프로필인 경우
-  if (props.userId === (authStore.user?.id ?? 99)) {
+  if (isSelf.value) {
     return {
-      id: authStore.user?.id ?? 99,
-      nickname: authStore.user?.nickname ?? '사용자',
-      bio: authStore.user?.bio ?? '',
-      investmentType: surveyStore.resultType ?? '미설정',
-      followerCount: followStore.followerCount,
+      id:             authStore.user.id,
+      nickname:       authStore.user.nickname    ?? '사용자',
+      bio:            authStore.user.bio         ?? '',
+      investmentType: authStore.user.investment_type ?? '미설정',
+      followerCount:  followStore.followerCount,
       followingCount: followStore.followingCount,
-      postCount: 1,
     }
   }
-  return getUserById(props.userId)
+  return fetchedUser.value
 })
 
-const isSelf      = computed(() => props.userId === (authStore.user?.id ?? 99))
 const isFollowing = computed(() => followStore.isFollowing(props.userId))
 
-function handleFollow() {
+async function handleFollow() {
   if (isSelf.value) return
-  followStore.toggleFollow(props.userId)
+  await followStore.toggleFollow(props.userId)
 }
 
 function goToMyPage() {
@@ -47,11 +45,23 @@ function goToMyPage() {
   router.push('/mypage')
 }
 
-// ESC 닫기, 배경 스크롤 잠금
 function onKeyDown(e) { if (e.key === 'Escape') emit('close') }
-onMounted(() => {
+onMounted(async () => {
   document.body.style.overflow = 'hidden'
   window.addEventListener('keydown', onKeyDown)
+  if (!isSelf.value) {
+    try {
+      const u = await userApi.getUser(props.userId)
+      fetchedUser.value = {
+        id:             u.id,
+        nickname:       u.nickname,
+        bio:            u.bio            ?? '',
+        investmentType: u.investment_type ?? '미설정',
+        followerCount:  u.follower_count  ?? 0,
+        followingCount: u.following_count ?? 0,
+      }
+    } catch (_) {}
+  }
 })
 onUnmounted(() => {
   document.body.style.overflow = ''

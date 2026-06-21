@@ -1,14 +1,15 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSurveyStore } from '@/stores/surveyStore'
 import AuthSurveyLayout from '@/layouts/AuthSurveyLayout.vue'
 
-const router = useRouter()
+const router      = useRouter()
+const surveyStore = useSurveyStore()
 
-onMounted(() => {
-  setTimeout(() => {
-    router.push('/survey/result')
-  }, 1800)
+onMounted(async () => {
+  await surveyStore.calculateResult()
+  router.push('/survey/result')
 })
 </script>
 

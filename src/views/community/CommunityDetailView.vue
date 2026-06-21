@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -13,6 +13,8 @@ const communityStore = useCommunityStore()
 const authStore      = useAuthStore()
 
 const post = computed(() => communityStore.getPost(route.params.postId))
+
+onMounted(() => communityStore.loadPost(Number(route.params.postId)))
 const commentText = ref('')
 
 const myId    = computed(() => authStore.user?.id ?? 99)

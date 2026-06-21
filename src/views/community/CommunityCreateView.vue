@@ -13,7 +13,7 @@ const surveyStore = useSurveyStore()
 
 const nickname = authStore.user?.nickname ?? '이서현'
 const initial = nickname.charAt(0)
-const riskType = surveyStore.resultType ?? '안정추구형'
+const riskType = authStore.user?.investment_type || surveyStore.resultType || '안정추구형'
 
 const form = reactive({ title: '', content: '' })
 const errors = reactive({ title: '', content: '' })
@@ -25,16 +25,18 @@ function validate() {
   return ok
 }
 
-function submit() {
+async function submit() {
   if (!validate()) return
-  communityStore.createPost({
-    title: form.title.trim(),
-    content: form.content.trim(),
-    author: nickname,
-    authorInitial: initial,
-    riskType,
-  })
-  router.push('/community')
+  try {
+    await communityStore.createPost({
+      title: form.title.trim(),
+      content: form.content.trim(),
+      riskType,
+    })
+    router.push('/community')
+  } catch (err) {
+    errors.title = '저장에 실패했습니다. 다시 시도해주세요.'
+  }
 }
 </script>
 

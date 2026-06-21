@@ -1,45 +1,49 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useChatStore } from '@/stores/chatStore'
-import { mockRecommendedStocks, allSearchableStocks } from '@/data/mockStocks'
+import { stockApi } from '@/api/stockApi'
 import PortfolioChartSlider from '@/components/PortfolioChartSlider.vue'
 import AiChatPanel from '@/components/AiChatPanel.vue'
 import AddStockModal from '@/components/AddStockModal.vue'
 import logoImg from '@/assets/logo.png'
 
-const router = useRouter()
-const authStore = useAuthStore()
-const surveyStore = useSurveyStore()
+const router         = useRouter()
+const authStore      = useAuthStore()
+const surveyStore    = useSurveyStore()
 const portfolioStore = usePortfolioStore()
-const chatStore = useChatStore()
+const chatStore      = useChatStore()
 
-const nickname = computed(() => authStore.user?.nickname ?? '사용자')
-const resultType = computed(() => surveyStore.resultType ?? '안정추구형')
-const riskScore = computed(() => surveyStore.riskScore ?? 30)
-const initial = computed(() => nickname.value.charAt(0))
+const nickname   = computed(() => authStore.user?.nickname ?? '사용자')
+const resultType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '안정추구형')
+const riskScore  = computed(() => authStore.user?.risk_score  || surveyStore.riskScore  || 0)
+const initial    = computed(() => nickname.value.charAt(0))
+
+// ── 추천 종목 ──
+const recommendedStocks = ref([])
+async function loadRecommended() {
+  try { recommendedStocks.value = await stockApi.getRecommended() } catch (_) {}
+}
 
 // ── 검색 ──
-const searchQuery = ref('')
-const showDropdown = computed(() =>
+const searchQuery   = ref('')
+const searchResults = ref([])
+const showDropdown  = computed(() =>
   searchQuery.value.trim().length > 0 && searchResults.value.length > 0
 )
-const searchResults = computed(() => {
-  const q = searchQuery.value.trim()
-  if (!q) return []
-  return allSearchableStocks.filter(
-    s => s.name.includes(q) || s.code.includes(q)
-  )
+let searchTimer = null
+watch(searchQuery, (q) => {
+  clearTimeout(searchTimer)
+  if (!q.trim()) { searchResults.value = []; return }
+  searchTimer = setTimeout(async () => {
+    try { searchResults.value = await stockApi.search(q.trim()) } catch (_) {}
+  }, 300)
 })
-function clearSearch() { searchQuery.value = '' }
-
-function addFromSearch(stock) {
-  clearSearch()
-  openModal(stock)
-}
+function clearSearch() { searchQuery.value = ''; searchResults.value = [] }
+function addFromSearch(stock) { clearSearch(); openModal(stock) }
 
 const stats = computed(() => portfolioStore.holdingsWithStats)
 
@@ -52,10 +56,15 @@ function logout() { authStore.logout(); router.push('/login') }
 // ── 종목 담기 모달 ──
 const selectedStock = ref(null)
 function openModal(stock) { selectedStock.value = stock }
-function closeModal() { selectedStock.value = null }
-function handleConfirm({ stock, qty, buyPrice }) {
-  portfolioStore.addHolding(stock, qty, buyPrice)
+function closeModal()     { selectedStock.value = null }
+async function handleConfirm({ stock, qty, buyPrice }) {
+  await portfolioStore.addHolding(stock, qty, buyPrice)
 }
+
+onMounted(() => {
+  portfolioStore.loadPortfolio()
+  loadRecommended()
+})
 </script>
 
 <template>
@@ -101,9 +110,9 @@ function handleConfirm({ stock, qty, buyPrice }) {
           </div>
         </div>
 
-        <p class="rec-count">추천 종목 {{ mockRecommendedStocks.length }}개</p>
+        <p class="rec-count">추천 종목 {{ recommendedStocks.length }}개</p>
 
-        <div v-for="stock in mockRecommendedStocks" :key="stock.id" class="stock-card">
+        <div v-for="stock in recommendedStocks" :key="stock.id" class="stock-card">
           <div class="stock-info">
             <div class="stock-top">
               <span class="stock-name">{{ stock.name }}</span>

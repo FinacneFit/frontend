@@ -1,12 +1,10 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
 import { useFollowStore } from '@/stores/followStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
-import { useCommunityStore } from '@/stores/communityStore'
-import { mockUsers, getUserById } from '@/data/mockUsers'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
 import logoImg from '@/assets/logo.png'
@@ -16,12 +14,11 @@ const authStore       = useAuthStore()
 const surveyStore     = useSurveyStore()
 const followStore     = useFollowStore()
 const portfolioStore  = usePortfolioStore()
-const communityStore  = useCommunityStore()
 
 // ── 유저 기본 정보 ──
 const nickname    = computed(() => authStore.user?.nickname ?? '사용자')
-const resultType  = computed(() => surveyStore.resultType ?? '미설정')
-const riskScore   = computed(() => surveyStore.riskScore ?? 0)
+const resultType  = computed(() => authStore.user?.investment_type || surveyStore.resultType || '미설정')
+const riskScore   = computed(() => authStore.user?.risk_score  || surveyStore.riskScore  || 0)
 const initial     = computed(() => nickname.value.charAt(0))
 
 // 점수 5~40 → 0~100% 변환
@@ -51,12 +48,8 @@ function saveBio() {
 const activeTab     = ref('followers') // 'followers' | 'following'
 const tabSectionRef = ref(null)
 
-const followerUsers = computed(() =>
-  followStore.followerIds.map(id => getUserById(id)).filter(Boolean)
-)
-const followingUsers = computed(() =>
-  followStore.followingIds.map(id => getUserById(id)).filter(Boolean)
-)
+const followerUsers  = computed(() => followStore.followers)
+const followingUsers = computed(() => followStore.following)
 
 // ── 포트폴리오 요약 ──
 const holdingsStats = computed(() => portfolioStore.holdingsWithStats)
@@ -85,9 +78,7 @@ function scrollToTab(tab) {
 }
 
 // ── 내가 쓴 글 ──
-const myPostCount = computed(() =>
-  communityStore.posts.filter(p => p.authorId === (authStore.user?.id ?? 99)).length
-)
+const myPostCount = computed(() => authStore.user?.post_count ?? 0)
 
 // ── UserProfileModal ──
 const selectedUserId = ref(null)
@@ -98,6 +89,13 @@ function logout() {
   authStore.logout()
   router.push('/login')
 }
+
+onMounted(() => {
+  authStore.refreshMe()
+  followStore.loadFollowers()
+  followStore.loadFollowing()
+  portfolioStore.loadPortfolio()
+})
 </script>
 
 <template>

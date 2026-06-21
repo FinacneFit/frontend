@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/authApi'
 
+const TOKEN_KEY = 'finfit_token'
+const USER_KEY  = 'finfit_user'
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null,
-    token: null,
+    user:      JSON.parse(localStorage.getItem(USER_KEY) ?? 'null'),
+    token:     localStorage.getItem(TOKEN_KEY) ?? null,
     isLoading: false,
-    error: null,
+    error:     null,
   }),
 
   getters: {
@@ -14,13 +17,26 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    _persist(user, token) {
+      this.user  = user
+      this.token = token
+      localStorage.setItem(TOKEN_KEY, token)
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
+    },
+
+    _clear() {
+      this.user  = null
+      this.token = null
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+    },
+
     async signup(credentials) {
       this.isLoading = true
       this.error = null
       try {
         const { user, token } = await authApi.signup(credentials)
-        this.user = user
-        this.token = token
+        this._persist(user, token)
       } catch (err) {
         this.error = err.message
         throw err
@@ -34,8 +50,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       try {
         const { user, token } = await authApi.login(credentials)
-        this.user = user
-        this.token = token
+        this._persist(user, token)
       } catch (err) {
         this.error = err.message
         throw err
@@ -44,14 +59,30 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    logout() {
-      this.user = null
-      this.token = null
+    async logout() {
+      try { await authApi.logout() } catch (_) {}
+      this._clear()
     },
 
-    /** 한 줄 소개 업데이트 (mock: 로컬 상태만) */
-    updateBio(bio) {
-      if (this.user) this.user.bio = bio
+    async updateBio(bio) {
+      try {
+        const user = await authApi.updateMe({ bio })
+        this.user = user
+        localStorage.setItem(USER_KEY, JSON.stringify(user))
+      } catch (err) {
+        if (this.user) this.user.bio = bio
+      }
+    },
+
+    async refreshMe() {
+      if (!this.token) return
+      try {
+        const user = await authApi.getMe()
+        this.user = user
+        localStorage.setItem(USER_KEY, JSON.stringify(user))
+      } catch (_) {
+        this._clear()
+      }
     },
   },
 })

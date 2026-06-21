@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useSurveyStore } from '@/stores/surveyStore'
@@ -12,6 +12,8 @@ const router         = useRouter()
 const communityStore = useCommunityStore()
 const surveyStore    = useSurveyStore()
 const authStore      = useAuthStore()
+
+onMounted(() => communityStore.loadPosts())
 
 const activeFilter = computed(() => communityStore.activeFilter)
 const posts = computed(() => communityStore.filteredPosts)

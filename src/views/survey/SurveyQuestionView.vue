@@ -1,22 +1,24 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSurveyStore } from '@/stores/surveyStore'
-import { mockSurveyQuestions } from '@/data/mockSurveyQuestions'
 import AuthSurveyLayout from '@/layouts/AuthSurveyLayout.vue'
 
 const router = useRouter()
 const surveyStore = useSurveyStore()
 
-const total = mockSurveyQuestions.length
 const selectedChoiceIndex = ref(null)
 
-const currentIndex = computed(() => surveyStore.currentQuestionIndex)
-const currentQuestion = computed(() => mockSurveyQuestions[currentIndex.value])
-const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / total) * 100))
-const isFirst = computed(() => currentIndex.value === 0)
-const isLast = computed(() => currentIndex.value === total - 1)
-const canProceed = computed(() => selectedChoiceIndex.value !== null)
+const currentIndex    = computed(() => surveyStore.currentQuestionIndex)
+const questions       = computed(() => surveyStore.questions)
+const total           = computed(() => questions.value.length || 5)
+const currentQuestion = computed(() => questions.value[currentIndex.value])
+const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / total.value) * 100))
+const isFirst         = computed(() => currentIndex.value === 0)
+const isLast          = computed(() => currentIndex.value === total.value - 1)
+const canProceed      = computed(() => selectedChoiceIndex.value !== null)
+
+onMounted(() => surveyStore.loadQuestions())
 
 watch(
   currentIndex,
@@ -29,8 +31,9 @@ watch(
 
 function selectChoice(choiceIndex) {
   selectedChoiceIndex.value = choiceIndex
-  const score = currentQuestion.value.choices[choiceIndex].score
-  surveyStore.setAnswer(currentIndex.value, choiceIndex, score)
+  const choice   = currentQuestion.value.choices[choiceIndex]
+  const question = currentQuestion.value
+  surveyStore.setAnswer(currentIndex.value, choiceIndex, choice.score, choice.id, question.id)
 }
 
 function goPrev() {
@@ -41,7 +44,6 @@ function goPrev() {
 function goNext() {
   if (!canProceed.value) return
   if (isLast.value) {
-    surveyStore.calculateResult()
     router.push('/survey/result/loading')
   } else {
     surveyStore.currentQuestionIndex++
@@ -62,10 +64,10 @@ function goNext() {
       </div>
 
       <!-- 문항 -->
-      <h2 class="question-text">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</h2>
+      <h2 class="question-text" v-if="currentQuestion">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</h2>
 
       <!-- 선택지 -->
-      <div class="choices">
+      <div class="choices" v-if="currentQuestion">
         <button
           v-for="(choice, idx) in currentQuestion.choices"
           :key="idx"
