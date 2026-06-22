@@ -1,589 +1,759 @@
-<script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { spotAssetMeta, spotAssetPrices } from '@/data/spotAssetPrices'
-
-const router = useRouter()
-
-const selectedAsset = ref('gold')
-const selectedPeriod = ref('1Y')
-
-const periods = [
-  { label: '1개월', value: '1M', months: 1 },
-  { label: '3개월', value: '3M', months: 3 },
-  { label: '6개월', value: '6M', months: 6 },
-  { label: '1년', value: '1Y', months: 12 },
-  { label: '전체', value: 'ALL', months: null },
-]
-
-const assetOptions = [
-  { label: '금', value: 'gold' },
-  { label: '은', value: 'silver' },
-]
-
-const currentMeta = computed(() => spotAssetMeta[selectedAsset.value])
-
-const currentRows = computed(() => {
-  return spotAssetPrices[selectedAsset.value] ?? []
-})
-
-function parseDate(dateText) {
-  return new Date(`${dateText}T00:00:00`)
-}
-
-const filteredRows = computed(() => {
-  const rows = currentRows.value
-  if (rows.length === 0) return []
-
-  if (selectedPeriod.value === 'ALL') return rows
-
-  const period = periods.find((item) => item.value === selectedPeriod.value)
-  const latestDate = parseDate(rows[rows.length - 1].date)
-
-  const cutoffDate = new Date(latestDate)
-  cutoffDate.setMonth(cutoffDate.getMonth() - period.months)
-
-  return rows.filter((row) => parseDate(row.date) >= cutoffDate)
-})
-
-const latestRow = computed(() => {
-  const rows = filteredRows.value
-  return rows.length > 0 ? rows[rows.length - 1] : null
-})
-
-const firstRow = computed(() => {
-  const rows = filteredRows.value
-  return rows.length > 0 ? rows[0] : null
-})
-
-const periodReturnRate = computed(() => {
-  if (!firstRow.value || !latestRow.value || firstRow.value.close === 0) return 0
-  return ((latestRow.value.close - firstRow.value.close) / firstRow.value.close) * 100
-})
-
-const periodHigh = computed(() => {
-  const values = filteredRows.value.map((row) => row.high ?? row.close)
-  return values.length ? Math.max(...values) : 0
-})
-
-const periodLow = computed(() => {
-  const values = filteredRows.value.map((row) => row.low ?? row.close)
-  return values.length ? Math.min(...values) : 0
-})
-
-const recentRows = computed(() => {
-  return [...filteredRows.value].reverse().slice(0, 5)
-})
-
-function formatPrice(value) {
-  if (value === null || value === undefined) return '-'
-  return `$${Number(value).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 3,
-  })}`
-}
-
-function formatNumber(value) {
-  if (value === null || value === undefined) return '-'
-  return Number(value).toLocaleString('en-US', {
-    maximumFractionDigits: 3,
-  })
-}
-
-function formatRate(value) {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
-}
-
-function formatDate(dateText) {
-  return dateText.replaceAll('-', '.')
-}
-
-// SVG 차트 설정
-const chartWidth = 900
-const chartHeight = 360
-const padding = {
-  top: 28,
-  right: 36,
-  bottom: 48,
-  left: 76,
-}
-
-const innerWidth = chartWidth - padding.left - padding.right
-const innerHeight = chartHeight - padding.top - padding.bottom
-
-const chartMin = computed(() => {
-  const values = filteredRows.value.map((row) => row.close)
-  if (values.length === 0) return 0
-  return Math.min(...values)
-})
-
-const chartMax = computed(() => {
-  const values = filteredRows.value.map((row) => row.close)
-  if (values.length === 0) return 0
-  return Math.max(...values)
-})
-
-const chartPoints = computed(() => {
-  const rows = filteredRows.value
-  if (rows.length === 0) return []
-
-  const min = chartMin.value
-  const max = chartMax.value
-  const range = max - min || 1
-
-  return rows.map((row, index) => {
-    const x = padding.left + (index / Math.max(rows.length - 1, 1)) * innerWidth
-    const y = padding.top + ((max - row.close) / range) * innerHeight
-
-    return {
-      x,
-      y,
-      row,
-    }
-  })
-})
-
-const chartPath = computed(() => {
-  return chartPoints.value
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ')
-})
-
-const yTicks = computed(() => {
-  const min = chartMin.value
-  const max = chartMax.value
-  const range = max - min || 1
-
-  return [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-    const value = max - range * ratio
-    const y = padding.top + ratio * innerHeight
-
-    return {
-      y,
-      value,
-    }
-  })
-})
-
-const xLabels = computed(() => {
-  const rows = filteredRows.value
-  if (rows.length === 0) return []
-
-  const indexes = [...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])]
-
-  return indexes.map((index) => {
-    const x = padding.left + (index / Math.max(rows.length - 1, 1)) * innerWidth
-
-    return {
-      x,
-      label: formatDate(rows[index].date),
-    }
-  })
-})
-</script>
-
 <template>
-  <div class="spot-page">
-    <header class="spot-header">
-      <div>
-        <p class="eyebrow">현물 자산</p>
-        <h1>금·은 가격 차트</h1>
-        <p class="desc">기간을 선택해 금과 은의 가격 변동을 확인할 수 있습니다.</p>
+  <div class="app-shell">
+    <!-- ── HEADER ── -->
+    <header class="app-header">
+      <div class="header-left">
+        <button class="logo-btn" @click="router.push('/dashboard')">
+          <img :src="logoImg" class="logo-img" alt="FinFit" />
+          <span class="logo-text">FinFit</span>
+        </button>
       </div>
 
-      <button class="back-btn" @click="router.push('/dashboard')">
-        포트폴리오로 돌아가기
-      </button>
+      <div class="header-right">
+        <button class="btn-community" @click="router.push('/deposits')">
+          예금·적금
+        </button>
+        <button class="btn-community" @click="router.push('/spot-assets')">
+          현물 차트
+        </button>
+        <button class="btn-community" @click="router.push('/community')">
+          커뮤니티
+        </button>
+
+        <button class="btn-logout" @click="logout">
+          로그아웃
+        </button>
+
+        <button class="user-info" @click="router.push('/mypage')">
+          <div class="user-text">
+            <span class="user-name">
+              <span class="name-blue">{{ nickname }}</span> 님
+            </span>
+            <span class="user-type">{{ resultType }}</span>
+          </div>
+          <div class="avatar">{{ initial }}</div>
+        </button>
+      </div>
     </header>
 
-    <section class="control-card">
-      <div class="control-group">
-        <p class="control-label">자산 선택</p>
-        <div class="button-row">
-          <button
-            v-for="asset in assetOptions"
-            :key="asset.value"
-            class="pill-btn"
-            :class="{ active: selectedAsset === asset.value }"
-            @click="selectedAsset = asset.value"
-          >
-            {{ asset.label }}
-          </button>
-        </div>
+    <!-- ── BODY ── -->
+    <main class="spot-page">
+      <div class="spot-inner">
+        <section class="page-header">
+          <div>
+            <p class="eyebrow">Spot Asset Price Chart</p>
+            <h1>현물 자산 가격 차트</h1>
+            <p class="description">
+              금과 은의 과거 가격 데이터를 기반으로 현물 자산 가격 흐름을 확인할 수 있습니다.
+            </p>
+          </div>
+
+          <div class="asset-tabs">
+            <button
+              type="button"
+              :class="{ active: selectedAsset === 'gold' }"
+              @click="selectedAsset = 'gold'"
+            >
+              금
+            </button>
+            <button
+              type="button"
+              :class="{ active: selectedAsset === 'silver' }"
+              @click="selectedAsset = 'silver'"
+            >
+              은
+            </button>
+          </div>
+        </section>
+
+        <section class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2>{{ currentMeta.label }} 가격 추이</h2>
+              <p>{{ currentMeta.unit }}</p>
+            </div>
+
+            <div class="latest-price" v-if="latestPrice">
+              <span>최근 가격</span>
+              <strong>{{ formatPrice(latestPrice.close) }}</strong>
+              <small>{{ latestPrice.date }}</small>
+            </div>
+          </div>
+
+          <div v-if="chartPoints.length > 0" class="chart-wrap">
+            <svg viewBox="0 0 900 320" class="line-chart" preserveAspectRatio="none">
+              <line
+                v-for="tick in yTicks"
+                :key="tick.y"
+                x1="60"
+                :y1="tick.y"
+                x2="870"
+                :y2="tick.y"
+                class="grid-line"
+              />
+
+              <polyline :points="chartPointsString" class="price-line" />
+
+              <circle
+                v-for="point in markerPoints"
+                :key="point.date"
+                :cx="point.x"
+                :cy="point.y"
+                r="4"
+                class="price-dot"
+              />
+
+              <text
+                v-for="tick in yTicks"
+                :key="tick.label"
+                x="12"
+                :y="tick.y + 4"
+                class="axis-label"
+              >
+                {{ tick.label }}
+              </text>
+
+              <text
+                v-for="label in xLabels"
+                :key="label.date"
+                :x="label.x"
+                y="305"
+                class="axis-label x-label"
+              >
+                {{ label.date }}
+              </text>
+            </svg>
+          </div>
+
+          <div v-else class="empty-state">
+            차트에 표시할 데이터가 없습니다.
+          </div>
+        </section>
+
+        <section class="summary-grid">
+          <article class="summary-card">
+            <span>최고가</span>
+            <strong>{{ formatPrice(maxPrice) }}</strong>
+          </article>
+
+          <article class="summary-card">
+            <span>최저가</span>
+            <strong>{{ formatPrice(minPrice) }}</strong>
+          </article>
+
+          <article class="summary-card">
+            <span>데이터 수</span>
+            <strong>{{ currentPrices.length.toLocaleString() }}개</strong>
+          </article>
+        </section>
+
+        <section class="recent-card">
+          <div class="recent-header">
+            <div>
+              <h2>최근 가격 데이터</h2>
+              <p>가장 최근 날짜 기준 8개의 가격 데이터입니다.</p>
+            </div>
+          </div>
+
+          <div class="recent-table-wrap">
+            <table class="recent-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>종가</th>
+                  <th>시가</th>
+                  <th>고가</th>
+                  <th>저가</th>
+                  <th>거래량</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr v-for="row in recentRows" :key="row.date">
+                  <td>{{ row.date }}</td>
+                  <td>{{ formatPrice(row.close) }}</td>
+                  <td>{{ formatPrice(row.open) }}</td>
+                  <td>{{ formatPrice(row.high) }}</td>
+                  <td>{{ formatPrice(row.low) }}</td>
+                  <td>{{ formatVolume(row.volume) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
-
-      <div class="control-group">
-        <p class="control-label">기간 선택</p>
-        <div class="button-row">
-          <button
-            v-for="period in periods"
-            :key="period.value"
-            class="pill-btn"
-            :class="{ active: selectedPeriod === period.value }"
-            @click="selectedPeriod = period.value"
-          >
-            {{ period.label }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="summary-grid">
-      <div class="summary-card">
-        <p>최근 종가</p>
-        <strong>{{ latestRow ? formatPrice(latestRow.close) : '-' }}</strong>
-        <span>{{ currentMeta.unit }}</span>
-      </div>
-
-      <div class="summary-card">
-        <p>기간 등락률</p>
-        <strong :class="periodReturnRate >= 0 ? 'pos' : 'neg'">
-          {{ formatRate(periodReturnRate) }}
-        </strong>
-        <span>{{ selectedPeriod }}</span>
-      </div>
-
-      <div class="summary-card">
-        <p>기간 최고가</p>
-        <strong>{{ formatPrice(periodHigh) }}</strong>
-        <span>High 기준</span>
-      </div>
-
-      <div class="summary-card">
-        <p>기간 최저가</p>
-        <strong>{{ formatPrice(periodLow) }}</strong>
-        <span>Low 기준</span>
-      </div>
-    </section>
-
-    <section class="chart-card">
-      <div class="chart-title-row">
-        <div>
-          <h2>{{ currentMeta.label }} 가격 추이</h2>
-          <p>Close/Last 기준</p>
-        </div>
-        <strong :class="periodReturnRate >= 0 ? 'pos' : 'neg'">
-          {{ formatRate(periodReturnRate) }}
-        </strong>
-      </div>
-
-      <div v-if="filteredRows.length > 0" class="chart-wrap">
-        <svg
-          :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-          class="line-chart"
-          role="img"
-          aria-label="현물 자산 가격 차트"
-        >
-          <line
-            v-for="tick in yTicks"
-            :key="tick.y"
-            :x1="padding.left"
-            :x2="chartWidth - padding.right"
-            :y1="tick.y"
-            :y2="tick.y"
-            class="grid-line"
-          />
-
-          <text
-            v-for="tick in yTicks"
-            :key="`label-${tick.y}`"
-            :x="padding.left - 12"
-            :y="tick.y + 4"
-            text-anchor="end"
-            class="axis-label"
-          >
-            {{ formatNumber(tick.value) }}
-          </text>
-
-          <text
-            v-for="label in xLabels"
-            :key="label.label"
-            :x="label.x"
-            :y="chartHeight - 14"
-            text-anchor="middle"
-            class="axis-label"
-          >
-            {{ label.label }}
-          </text>
-
-          <path :d="chartPath" class="price-line" fill="none" />
-
-          <circle
-            v-for="point in chartPoints"
-            :key="point.row.date"
-            :cx="point.x"
-            :cy="point.y"
-            r="2.5"
-            class="price-dot"
-          >
-            <title>
-              {{ point.row.date }} / {{ formatPrice(point.row.close) }}
-            </title>
-          </circle>
-        </svg>
-      </div>
-
-      <p v-else class="empty-text">표시할 데이터가 없습니다.</p>
-    </section>
-
-    <section class="table-card">
-      <h2>최근 가격 데이터</h2>
-
-      <table>
-        <thead>
-          <tr>
-            <th>날짜</th>
-            <th>종가</th>
-            <th>시가</th>
-            <th>고가</th>
-            <th>저가</th>
-            <th>거래량</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in recentRows" :key="row.date">
-            <td>{{ row.date }}</td>
-            <td>{{ formatPrice(row.close) }}</td>
-            <td>{{ formatPrice(row.open) }}</td>
-            <td>{{ formatPrice(row.high) }}</td>
-            <td>{{ formatPrice(row.low) }}</td>
-            <td>{{ formatNumber(row.volume) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    </main>
   </div>
 </template>
 
-<style scoped>
-.spot-page {
-  min-height: 100vh;
-  padding: 36px;
-  background: #f5f7fb;
-  color: #0f172a;
+<script setup>
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import logoImg from '@/assets/logo.png'
+import { spotAssetMeta, spotAssetPrices } from '../data/spotAssetPrices'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const nickname = computed(() => authStore.user?.nickname ?? '사용자')
+const resultType = computed(() => authStore.user?.investment_type ?? '안정추구형')
+const initial = computed(() => nickname.value.charAt(0))
+
+function logout() {
+  authStore.logout()
+  router.push('/login')
 }
 
-.spot-header {
+const selectedAsset = ref('gold')
+
+const currentMeta = computed(() => spotAssetMeta[selectedAsset.value])
+
+const currentPrices = computed(() => {
+  return spotAssetPrices[selectedAsset.value] || []
+})
+
+const visiblePrices = computed(() => {
+  return currentPrices.value.slice(-120)
+})
+
+const recentRows = computed(() => {
+  return currentPrices.value.slice(-8).reverse()
+})
+
+const latestPrice = computed(() => {
+  if (currentPrices.value.length === 0) return null
+  return currentPrices.value[currentPrices.value.length - 1]
+})
+
+const minPrice = computed(() => {
+  if (visiblePrices.value.length === 0) return 0
+  return Math.min(...visiblePrices.value.map((item) => item.close))
+})
+
+const maxPrice = computed(() => {
+  if (visiblePrices.value.length === 0) return 0
+  return Math.max(...visiblePrices.value.map((item) => item.close))
+})
+
+const chartPoints = computed(() => {
+  const data = visiblePrices.value
+
+  if (data.length === 0) {
+    return []
+  }
+
+  const width = 810
+  const height = 240
+  const startX = 60
+  const startY = 30
+  const priceRange = maxPrice.value - minPrice.value || 1
+
+  return data.map((item, index) => {
+    const x = startX + (index / Math.max(data.length - 1, 1)) * width
+    const y = startY + height - ((item.close - minPrice.value) / priceRange) * height
+
+    return {
+      x,
+      y,
+      date: item.date,
+      close: item.close,
+    }
+  })
+})
+
+const chartPointsString = computed(() => {
+  return chartPoints.value.map((point) => `${point.x},${point.y}`).join(' ')
+})
+
+const markerPoints = computed(() => {
+  if (chartPoints.value.length === 0) return []
+
+  const first = chartPoints.value[0]
+  const last = chartPoints.value[chartPoints.value.length - 1]
+  const middle = chartPoints.value[Math.floor(chartPoints.value.length / 2)]
+
+  return [first, middle, last]
+})
+
+const yTicks = computed(() => {
+  const ticks = []
+  const count = 5
+  const startY = 30
+  const height = 240
+
+  for (let i = 0; i < count; i += 1) {
+    const ratio = i / (count - 1)
+    const price = maxPrice.value - (maxPrice.value - minPrice.value) * ratio
+    const y = startY + height * ratio
+
+    ticks.push({
+      y,
+      label: formatCompactPrice(price),
+    })
+  }
+
+  return ticks
+})
+
+const xLabels = computed(() => {
+  if (chartPoints.value.length === 0) return []
+
+  const first = chartPoints.value[0]
+  const middle = chartPoints.value[Math.floor(chartPoints.value.length / 2)]
+  const last = chartPoints.value[chartPoints.value.length - 1]
+
+  return [first, middle, last].map((point) => ({
+    x: point.x,
+    date: point.date.slice(2),
+  }))
+})
+
+function formatPrice(value) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return `$${Number(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function formatCompactPrice(value) {
+  return `$${Math.round(value).toLocaleString()}`
+}
+
+function formatVolume(value) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
+  return Number(value).toLocaleString()
+}
+</script>
+
+<style scoped>
+.app-shell {
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* ── 헤더: 포트폴리오 페이지와 동일 구조 ── */
+.app-header {
+  height: 68px;
+  border-bottom: 1px solid #000;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  justify-content: space-between;
+  padding: 0 32px;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.logo-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: #000;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-community {
+  background: #1b78fd;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 8px 18px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-community:hover {
+  opacity: 0.88;
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 7px 13px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  color: #787878;
+  cursor: pointer;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.user-name {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.name-blue {
+  color: #1b78fd;
+}
+
+.user-type {
+  font-size: 11px;
+  color: #787878;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1b78fd, #2adbc6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 현물 차트 본문 ── */
+.spot-page {
+  min-height: calc(100vh - 68px);
+  padding: 32px 24px 40px;
+  background: #f8fafc;
+  color: #172033;
+}
+
+.spot-inner {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto 28px;
 }
 
 .eyebrow {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 13px;
-  font-weight: 800;
-  color: #2278f4;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: 34px;
+  font-weight: 800;
 }
 
-.desc {
+.description {
+  margin: 12px 0 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.asset-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.asset-tabs button {
+  border: 0;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.asset-tabs button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.chart-card {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 22px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.chart-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.chart-header p {
   margin: 8px 0 0;
   color: #64748b;
 }
 
-.back-btn,
-.pill-btn {
-  border: 0;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.back-btn {
-  padding: 12px 18px;
-  border-radius: 14px;
-  background: #2278f4;
-  color: white;
-}
-
-.control-card,
-.chart-card,
-.table-card {
-  padding: 24px;
-  border-radius: 22px;
-  background: white;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-}
-
-.control-card {
+.latest-price {
   display: flex;
-  gap: 32px;
-  margin-bottom: 18px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.control-label {
-  margin: 0 0 10px;
-  font-size: 14px;
-  font-weight: 800;
-  color: #475569;
+.latest-price span,
+.latest-price small {
+  color: #64748b;
 }
 
-.button-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.pill-btn {
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: #edf2f7;
-  color: #475569;
-}
-
-.pill-btn.active {
-  background: linear-gradient(135deg, #2278f4, #2dd4bf);
-  color: white;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.summary-card {
-  padding: 20px;
-  border-radius: 18px;
-  background: white;
-  border: 1px solid #e5e7eb;
-}
-
-.summary-card p {
-  margin: 0 0 8px;
-  color: #94a3b8;
-  font-weight: 800;
-}
-
-.summary-card strong {
-  display: block;
-  font-size: 22px;
-}
-
-.summary-card span {
-  display: block;
-  margin-top: 6px;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.chart-card {
-  margin-bottom: 18px;
-}
-
-.chart-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-
-.chart-title-row h2,
-.table-card h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.chart-title-row p {
-  margin: 6px 0 0;
-  color: #94a3b8;
-}
-
-.chart-title-row strong {
-  font-size: 22px;
+.latest-price strong {
+  font-size: 24px;
 }
 
 .chart-wrap {
   width: 100%;
-  overflow-x: auto;
+  height: 260px;
 }
 
 .line-chart {
   width: 100%;
-  min-width: 760px;
+  height: 100%;
 }
 
 .grid-line {
-  stroke: #e5e7eb;
+  stroke: #e2e8f0;
   stroke-width: 1;
 }
 
-.axis-label {
-  fill: #94a3b8;
-  font-size: 12px;
-}
-
 .price-line {
-  stroke: #2278f4;
+  fill: none;
+  stroke: #2563eb;
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .price-dot {
-  fill: #2278f4;
+  fill: #2563eb;
 }
 
-.pos {
-  color: #ef4444;
+.axis-label {
+  fill: #64748b;
+  font-size: 12px;
 }
 
-.neg {
-  color: #2563eb;
+.x-label {
+  text-anchor: middle;
 }
 
-.empty-text {
-  padding: 40px 0;
+.empty-state {
+  padding: 60px 0;
   text-align: center;
-  color: #94a3b8;
+  color: #64748b;
 }
 
-table {
+.summary-grid {
   width: 100%;
-  margin-top: 16px;
+  max-width: 960px;
+  margin: 20px auto 0;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.summary-card {
+  width: 260px;
+  min-width: 260px;
+  height: 110px;
+  padding: 22px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+.summary-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.summary-card strong {
+  font-size: 24px;
+}
+
+.recent-card {
+  width: 100%;
+  max-width: 960px;
+  margin: 20px auto 0;
+  padding: 22px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+
+.recent-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.recent-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.recent-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.recent-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.recent-table {
+  width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
-th,
-td {
-  padding: 14px 10px;
-  border-bottom: 1px solid #e5e7eb;
+.recent-table th,
+.recent-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e2e8f0;
   text-align: right;
+  white-space: nowrap;
 }
 
-th:first-child,
-td:first-child {
+.recent-table th:first-child,
+.recent-table td:first-child {
   text-align: left;
 }
 
-th {
+.recent-table th {
   color: #64748b;
   font-size: 13px;
+  font-weight: 700;
+  background: #f8fafc;
 }
 
-td {
-  font-weight: 700;
+.recent-table td {
+  color: #172033;
+  font-size: 14px;
+}
+
+.recent-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 @media (max-width: 900px) {
-  .spot-page {
-    padding: 20px;
+  .app-header {
+    height: auto;
+    min-height: 68px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
   }
 
-  .spot-header,
-  .control-card {
+  .header-right {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .btn-community,
+  .btn-logout,
+  .user-info {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .spot-page {
+    padding: 24px 18px 32px;
+  }
+
+  .page-header,
+  .chart-header,
+  .recent-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .latest-price {
+    align-items: flex-start;
+  }
+
+  .chart-wrap {
+    height: 240px;
+  }
+
   .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
+    justify-content: flex-start;
   }
 }
 </style>
