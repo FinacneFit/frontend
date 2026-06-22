@@ -5,16 +5,28 @@ import { useChatStore } from '@/stores/chatStore'
 const chatStore = useChatStore()
 const inputText = ref('')
 const messagesEl = ref(null)
+const textareaEl = ref(null)
 
 async function send() {
   const text = inputText.value.trim()
   if (!text) return
   inputText.value = ''
+  await nextTick()
+  resizeTextarea()
   await chatStore.sendMessage(text)
 }
 
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+}
+
+function resizeTextarea() {
+  const el = textareaEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  const next = el.scrollHeight
+  el.style.height = Math.min(next, 72) + 'px'
+  el.style.overflowY = next > 72 ? 'auto' : 'hidden'
 }
 
 watch(
@@ -53,12 +65,17 @@ watch(
     </div>
 
     <div class="chat-input-row">
-      <input
-        v-model="inputText"
-        class="chat-input"
-        placeholder="궁금한 것을 물어보세요 !"
-        @keydown="onKeydown"
-      />
+      <div class="input-wrap">
+        <textarea
+          ref="textareaEl"
+          v-model="inputText"
+          class="chat-input"
+          placeholder="궁금한 것을 물어보세요 !"
+          rows="1"
+          @keydown="onKeydown"
+          @input="resizeTextarea"
+        />
+      </div>
       <button class="btn-send" @click="send">전송</button>
     </div>
   </div>
@@ -102,6 +119,13 @@ watch(
   flex-direction: column;
   gap: 10px;
 }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 9999px;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 
 .msg-row { display: flex; }
 .msg-row.user { justify-content: flex-end; }
@@ -114,7 +138,8 @@ watch(
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 13px;
   line-height: 1.5;
-  word-break: keep-all;
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 .msg-row.user .bubble {
   background: #1b78fd;
@@ -156,17 +181,37 @@ watch(
   border-top: 1px solid #f3f4f6;
   flex-shrink: 0;
 }
-.chat-input {
+.input-wrap {
   flex: 1;
-  height: 38px;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 0 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.input-wrap:focus-within { border-color: #1b78fd; }
+.chat-input {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  max-height: 72px;
+  border: none;
+  outline: none;
+  padding: 9px 12px;
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 13px;
-  outline: none;
+  resize: none;
+  overflow-y: hidden;
+  line-height: 1.5;
+  box-sizing: border-box;
+  background: transparent;
 }
-.chat-input:focus { border-color: #1b78fd; }
+.chat-input::-webkit-scrollbar { width: 4px; }
+.chat-input::-webkit-scrollbar-track { background: transparent; }
+.chat-input::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 9999px;
+}
+.chat-input::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 .btn-send {
   height: 38px;
   padding: 0 16px;

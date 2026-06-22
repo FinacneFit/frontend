@@ -29,6 +29,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
+      localStorage.removeItem('finfit_chat')
     },
 
     async signup(credentials) {
