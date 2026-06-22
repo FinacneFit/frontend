@@ -100,6 +100,7 @@ onUnmounted(() => {
         <button class="btn-community" @click="router.push('/deposits')">예금·적금</button>
         <button class="btn-community" @click="router.push('/spot-assets')">현물 차트</button>
         <button class="btn-community" @click="router.push('/stock-videos')">주식 정보</button>
+        <button class="btn-community" @click="router.push('/banks')">은행 찾기</button>
         <button class="btn-community" @click="router.push('/community')">커뮤니티</button>
 
         <button class="btn-logout" @click="logout">로그아웃</button>

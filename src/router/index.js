@@ -35,6 +35,7 @@ const router = createRouter({
     { path: '/spot-assets', component: SpotAssetChartView },
     {path: '/stock-videos',name: 'stock-videos', component: () => import('@/views/StockVideoSearchView.vue'),},
     {path: '/stock-videos/:videoId',name: 'stock-video-detail', component: () => import('@/views/StockVideoDetailView.vue'),},
+    {path: '/banks',name: 'banks',component: () => import('@/views/BankMapView.vue'),},
   ],
 })
 
