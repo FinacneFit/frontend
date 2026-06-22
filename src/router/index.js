@@ -13,6 +13,7 @@ import CommunityDetailView from '@/views/community/CommunityDetailView.vue'
 import CommunityCreateView from '@/views/community/CommunityCreateView.vue'
 import CommunityMyListView from '@/views/community/CommunityMyListView.vue'
 import DepositListView from '@/views/DepositListView.vue'
+import SpotAssetChartView from '@/views/SpotAssetChartView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: '/community/my', component: CommunityMyListView },
     { path: '/community/:postId', component: CommunityDetailView },
     { path: '/deposits', component: DepositListView },
+    { path: '/spot-assets', component: SpotAssetChartView },
   ],
 })
 

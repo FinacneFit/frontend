@@ -98,7 +98,9 @@ onUnmounted(() => {
       </div>
       <div class="header-right">
         <button class="btn-community" @click="router.push('/deposits')">예금·적금</button>
+        <button class="btn-community" @click="router.push('/spot-assets')">현물 차트</button>
         <button class="btn-community" @click="router.push('/community')">커뮤니티</button>
+
         <button class="btn-logout" @click="logout">로그아웃</button>
         <button class="user-info" @click="router.push('/mypage')">
           <div class="user-text">
