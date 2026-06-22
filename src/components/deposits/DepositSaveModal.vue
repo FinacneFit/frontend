@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDepositStore } from '@/stores/depositStore'
 
 const props = defineProps({
@@ -14,61 +14,59 @@ const emit = defineEmits(['close', 'saved'])
 const depositStore = useDepositStore()
 
 const amount = ref(1000000)
-const selectedTerm = ref(props.product.term ?? '12개월')
-const selectedOptionIndex = ref(0)
+const amountStr = ref('1,000,000')
+const rateVal = ref(Number(props.product.maxRate || props.product.baseRate || 0))
 const memo = ref('')
 const isSubmitting = ref(false)
 
-const options = computed(() => {
-  return Array.isArray(props.product.options) ? props.product.options : []
-})
-
-const selectedOption = computed(() => {
-  if (options.value.length === 0) {
-    return null
-  }
-
-  return options.value[selectedOptionIndex.value] ?? options.value[0]
-})
-
-const finalRate = computed(() => {
-  if (selectedOption.value) {
-    return Number(selectedOption.value.maxRate || selectedOption.value.baseRate || 0)
-  }
-
-  return Number(props.product.maxRate || props.product.baseRate || 0)
-})
-
-const expectedInterest = computed(() => {
-  const principal = Number(amount.value) || 0
-  const rate = Number(finalRate.value) || 0
-  const months = termToMonths(selectedTerm.value)
-
-  return Math.floor(principal * (rate / 100) * (months / 12))
-})
-
-const expectedTotal = computed(() => {
-  return (Number(amount.value) || 0) + expectedInterest.value
-})
+const TYPE_LABEL = {
+  deposit: '예금',
+  saving: '적금',
+}
 
 function termToMonths(term) {
   return Number(String(term).replace('개월', '')) || 12
 }
 
-function formatWon(value) {
-  return `${Number(value || 0).toLocaleString()}원`
+function parseMoney(value) {
+  return Number(String(value).replace(/[^\d]/g, '')) || 0
 }
 
-function formatRate(value) {
-  return `${Number(value || 0).toFixed(2)}%`
+function fmt(value) {
+  return Math.round(Number(value || 0)).toLocaleString('ko-KR')
 }
 
-function onOptionChange() {
-  const option = selectedOption.value
+const maturity = computed(() => {
+  const months = termToMonths(props.product.term)
+  const principal = Number(amount.value || 0)
+  const rate = Number(rateVal.value || 0)
 
-  if (option?.period) {
-    selectedTerm.value = option.period
-  }
+  return principal + principal * (rate / 100) * (months / 12)
+})
+
+const interest = computed(() => {
+  return maturity.value - Number(amount.value || 0)
+})
+
+function onAmountInput(event) {
+  const value = parseMoney(event.target.value)
+  amount.value = value
+  amountStr.value = value ? fmt(value) : ''
+}
+
+function onAmountFocus(event) {
+  event.target.value = String(amount.value)
+}
+
+function onAmountBlur(event) {
+  const value = parseMoney(event.target.value)
+  amount.value = value
+  amountStr.value = value ? fmt(value) : ''
+}
+
+function setAmount(value) {
+  amount.value = value
+  amountStr.value = fmt(value)
 }
 
 async function submit() {
@@ -81,7 +79,7 @@ async function submit() {
   try {
     await depositStore.saveProduct(props.product.id, {
       amount: Number(amount.value),
-      final_rate: Number(finalRate.value),
+      final_rate: Number(rateVal.value || 0),
       memo: memo.value,
     })
 
@@ -91,307 +89,356 @@ async function submit() {
     isSubmitting.value = false
   }
 }
+
+function onKeyDown(event) {
+  if (event.key === 'Escape') {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  document.body.style.overflow = 'hidden'
+  window.addEventListener('keydown', onKeyDown)
+})
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
+  window.removeEventListener('keydown', onKeyDown)
+})
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="emit('close')">
-    <section class="modal-card">
-      <header class="modal-header">
-        <div>
-          <p class="eyebrow">예금·적금 포트폴리오</p>
-          <h2>상품 담기</h2>
-        </div>
+  <div class="modal-overlay" @click.self="emit('close')">
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <button class="close-btn" type="button" aria-label="닫기" @click="emit('close')">
+        ×
+      </button>
 
-        <button class="close-btn" type="button" @click="emit('close')">×</button>
-      </header>
+      <h3 class="modal-title">{{ product.productName }}</h3>
 
-      <div class="product-summary">
-        <div>
-          <p class="bank-name">{{ product.bankName }}</p>
-          <h3>{{ product.productName }}</h3>
-        </div>
-
-        <span class="rate-badge">최고 {{ formatRate(product.maxRate) }}</span>
+      <div class="modal-sub">
+        <strong>{{ product.bankName }}</strong>
+        <span>·</span>
+        <span class="badge" :class="product.productType">
+          {{ TYPE_LABEL[product.productType] }}
+        </span>
+        <span>·</span>
+        <span>{{ product.term }}</span>
       </div>
 
-      <div class="form-grid">
-        <label class="form-field">
-          <span>가입 금액</span>
-          <input
-            v-model.number="amount"
-            type="number"
-            min="10000"
-            step="10000"
-            placeholder="가입 금액을 입력하세요"
-          />
-        </label>
-
-        <label v-if="options.length > 0" class="form-field">
-          <span>금리 옵션</span>
-          <select v-model.number="selectedOptionIndex" @change="onOptionChange">
-            <option
-              v-for="(option, index) in options"
-              :key="`${option.period}-${option.interestType}-${index}`"
-              :value="index"
-            >
-              {{ option.period }} / {{ option.interestType }} / 최고 {{ formatRate(option.maxRate) }}
-            </option>
-          </select>
-        </label>
-
-        <label v-else class="form-field">
-          <span>가입 기간</span>
-          <input v-model="selectedTerm" type="text" />
-        </label>
-
-        <label class="form-field full">
-          <span>메모</span>
-          <textarea
-            v-model="memo"
-            rows="3"
-            placeholder="선택 사항입니다. 예: 비상금 목적, 단기 목돈 운용 등"
-          />
-        </label>
-      </div>
-
-      <div class="estimate-box">
-        <div>
-          <span>적용 금리</span>
-          <strong>{{ formatRate(finalRate) }}</strong>
-        </div>
-
-        <div>
-          <span>예상 이자</span>
-          <strong>{{ formatWon(expectedInterest) }}</strong>
-        </div>
-
-        <div>
+      <div class="calc-cards">
+        <div class="calc-card">
           <span>예상 만기 금액</span>
-          <strong>{{ formatWon(expectedTotal) }}</strong>
+          <strong>{{ fmt(maturity) }}원</strong>
+          <em>+{{ fmt(interest) }}원</em>
+        </div>
+
+        <div class="calc-card">
+          <span>적용 금리</span>
+          <strong>{{ Number(rateVal || 0).toFixed(2) }}%</strong>
+        </div>
+
+        <div class="calc-card">
+          <span>가입 기간</span>
+          <strong>{{ product.term }}</strong>
         </div>
       </div>
 
-      <footer class="modal-actions">
-        <button class="cancel-btn" type="button" @click="emit('close')">
-          취소
-        </button>
+      <div class="form-row">
+        <label class="form-label">납입 금액</label>
 
-        <button
-          class="submit-btn"
-          type="button"
-          :disabled="isSubmitting || !amount || Number(amount) <= 0"
-          @click="submit"
-        >
-          {{ isSubmitting ? '저장 중...' : '포트폴리오에 담기' }}
-        </button>
-      </footer>
-    </section>
+        <div class="input-with-unit">
+          <input
+            type="text"
+            inputmode="numeric"
+            :value="amountStr"
+            @input="onAmountInput"
+            @focus="onAmountFocus"
+            @blur="onAmountBlur"
+          />
+          <span>원</span>
+        </div>
+
+        <div class="quick-btns">
+          <button
+            v-for="quick in [[100, '100만'], [500, '500만'], [1000, '1000만'], [3000, '3000만']]"
+            :key="quick[0]"
+            type="button"
+            @click="setAmount(quick[0] * 10000)"
+          >
+            {{ quick[1] }}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">최종 금리</label>
+
+        <div class="input-with-unit">
+          <input
+            v-model="rateVal"
+            type="text"
+            inputmode="decimal"
+          />
+          <span>%</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">메모</label>
+
+        <textarea
+          v-model="memo"
+          class="memo-input"
+          rows="3"
+          placeholder="선택 사항입니다. 예: 비상금, 단기 목돈, 여행자금 등"
+        />
+      </div>
+
+      <button
+        class="submit-btn"
+        type="button"
+        :disabled="isSubmitting || !amount || Number(amount) <= 0"
+        @click="submit"
+      >
+        {{ isSubmitting ? '추가 중...' : '포트폴리오에 추가하기' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.modal-backdrop {
+.modal-overlay {
   position: fixed;
   inset: 0;
+  background: rgba(15, 23, 42, 0.55);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.42);
 }
 
 .modal-card {
-  width: min(560px, 100%);
+  width: min(680px, 100%);
   background: #fff;
-  border-radius: 22px;
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
-  overflow: hidden;
-  font-family: 'Noto Sans KR', sans-serif;
+  border-radius: 20px;
+  padding: 34px 38px 38px;
+  position: relative;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+  animation: pop 0.18s ease;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 24px 26px 18px;
-  border-bottom: 1px solid #eef2f7;
-}
+@keyframes pop {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
 
-.eyebrow {
-  margin: 0 0 6px;
-  color: #1b78fd;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: #111827;
-  font-size: 22px;
-  font-weight: 800;
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .close-btn {
-  width: 34px;
-  height: 34px;
+  position: absolute;
+  top: 22px;
+  right: 26px;
   border: 0;
-  border-radius: 50%;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 24px;
+  background: transparent;
+  font-size: 28px;
   line-height: 1;
+  color: #111827;
   cursor: pointer;
 }
 
 .close-btn:hover {
-  background: #e2e8f0;
+  color: #6b7280;
 }
 
-.product-summary {
+.modal-title {
+  margin: 0 0 8px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.modal-sub {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
-  gap: 14px;
-  padding: 20px 26px;
-  border-bottom: 1px solid #eef2f7;
+  margin-bottom: 24px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
-.bank-name {
-  margin: 0 0 4px;
-  color: #64748b;
-  font-size: 13px;
+.modal-sub strong {
+  color: #374151;
   font-weight: 700;
 }
 
-.product-summary h3 {
-  margin: 0;
-  color: #111827;
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.rate-badge {
-  flex-shrink: 0;
+.badge {
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
-  padding: 7px 12px;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 22px 26px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.form-field.full {
-  grid-column: 1 / -1;
-}
-
-.form-field span {
-  color: #374151;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.form-field input,
-.form-field select,
-.form-field textarea {
-  width: 100%;
-  border: 1px solid #dbe3ec;
-  border-radius: 12px;
-  background: #fff;
-  color: #111827;
-  padding: 11px 12px;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 14px;
-  outline: none;
-}
-
-.form-field textarea {
-  resize: vertical;
-}
-
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-  border-color: #1b78fd;
-  box-shadow: 0 0 0 3px rgba(27, 120, 253, 0.12);
-}
-
-.estimate-box {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  margin: 0 26px 22px;
-  border: 1px solid #dbe3ec;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.estimate-box div {
-  padding: 16px 12px;
-  text-align: center;
-  border-right: 1px solid #dbe3ec;
-}
-
-.estimate-box div:last-child {
-  border-right: 0;
-}
-
-.estimate-box span {
-  display: block;
-  margin-bottom: 6px;
-  color: #94a3b8;
+  padding: 3px 10px;
   font-size: 12px;
   font-weight: 700;
 }
 
-.estimate-box strong {
-  color: #1b78fd;
-  font-size: 15px;
-  font-weight: 800;
+.badge.deposit {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 18px 26px 24px;
-  border-top: 1px solid #eef2f7;
+.badge.saving {
+  background: #dcfce7;
+  color: #166534;
 }
 
-.cancel-btn,
-.submit-btn {
-  border: 0;
+.calc-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.calc-card {
+  border: 1px solid #e2e8f0;
+  background: #fbfdff;
   border-radius: 12px;
-  padding: 11px 18px;
+  padding: 16px;
+}
+
+.calc-card span {
+  display: block;
+  font-family: 'Noto Sans KR', sans-serif;
+  color: #9ca3af;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.calc-card strong {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.calc-card em {
+  display: block;
+  margin-top: 4px;
+  font-style: normal;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.form-row {
+  margin-bottom: 18px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: #fff;
+}
+
+.input-with-unit input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  padding: 13px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.input-with-unit span {
+  margin-left: 8px;
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 14px;
-  font-weight: 800;
+  color: #9ca3af;
+}
+
+.input-with-unit:focus-within {
+  border-color: #1b78fd;
+}
+
+.quick-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.quick-btns button {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  color: #374151;
   cursor: pointer;
 }
 
-.cancel-btn {
-  background: #f1f5f9;
-  color: #475569;
+.quick-btns button:hover {
+  border-color: #1b78fd;
+  color: #1b78fd;
+}
+
+.memo-input {
+  width: 100%;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  resize: none;
+  outline: none;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  color: #374151;
+}
+
+.memo-input:focus {
+  border-color: #1b78fd;
 }
 
 .submit-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 18px;
   background: #1b78fd;
   color: #fff;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
 .submit-btn:disabled {
@@ -400,32 +447,12 @@ async function submit() {
 }
 
 @media (max-width: 640px) {
-  .form-grid,
-  .estimate-box {
+  .modal-card {
+    padding: 30px 24px 28px;
+  }
+
+  .calc-cards {
     grid-template-columns: 1fr;
-  }
-
-  .estimate-box div {
-    border-right: 0;
-    border-bottom: 1px solid #dbe3ec;
-  }
-
-  .estimate-box div:last-child {
-    border-bottom: 0;
-  }
-
-  .product-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-  }
-
-  .cancel-btn,
-  .submit-btn {
-    width: 100%;
   }
 }
 </style>

@@ -159,12 +159,22 @@ function toggleDetail(id) {
 }
 
 function openModal(product) {
+  saveTarget.value = product
+}
+
+async function handlePortfolioButton(product) {
   if (depositStore.isSaved(product.id)) {
-    showToast('이미 포트폴리오에 추가된 상품입니다.')
+    try {
+      await depositStore.deleteSavedProduct(product.id)
+      showToast(`${product.productName}이 포트폴리오에서 제거되었습니다.`)
+    } catch (error) {
+      showToast('포트폴리오에서 제거하지 못했습니다.')
+    }
+
     return
   }
 
-  saveTarget.value = product
+  openModal(product)
 }
 
 function closeModal() {
@@ -222,7 +232,9 @@ function logout() {
 onMounted(async () => {
   try {
     await depositStore.loadProducts()
+    await depositStore.loadSavedProducts()
   } catch (error) {
+    console.error('예금·적금 페이지 로딩 실패:', error)
     showToast('예금·적금 상품을 불러오지 못했습니다.')
   }
 })
@@ -472,9 +484,9 @@ onUnmounted(() => {
                         class="action-btn"
                         :class="{ saved: depositStore.isSaved(product.id) }"
                         type="button"
-                        @click="openModal(product)"
+                        @click="handlePortfolioButton(product)"
                       >
-                        {{ depositStore.isSaved(product.id) ? '추가됨' : '담기' }}
+                        {{ depositStore.isSaved(product.id) ? '제거' : '담기' }}
                       </button>
                     </td>
                   </tr>
@@ -927,7 +939,7 @@ tbody td {
 }
 
 .rate {
-  color: #1b78fd;
+  color: #ef4444;
   font-weight: 700;
   font-family: 'Inter', sans-serif;
 }
@@ -988,9 +1000,14 @@ tbody td {
 }
 
 .action-btn.saved {
-  background: #e5e7eb;
-  color: #9ca3af;
-  cursor: default;
+  background: #fee2e2;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.action-btn.saved:hover {
+  background: #ef4444;
+  color: #fff;
 }
 
 .pagination-wrap {
