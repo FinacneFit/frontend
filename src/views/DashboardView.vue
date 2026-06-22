@@ -6,7 +6,7 @@ import { useSurveyStore } from '@/stores/surveyStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useChatStore } from '@/stores/chatStore'
 import { stockApi } from '@/api/stockApi'
-import PortfolioChartSlider from '@/components/PortfolioChartSlider.vue'
+import PortfolioAllocationChart from '@/components/PortfolioAllocationChart.vue'
 import AiChatPanel from '@/components/AiChatPanel.vue'
 import AddStockModal from '@/components/AddStockModal.vue'
 import logoImg from '@/assets/logo.png'
@@ -199,8 +199,8 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 차트 슬라이더 -->
-        <PortfolioChartSlider />
+        <!-- 비중 차트 -->
+        <PortfolioAllocationChart />
 
         <!-- 종목 테이블 -->
         <div class="holdings-table">
@@ -213,7 +213,6 @@ onUnmounted(() => {
           </div>
           <!-- 보유 종목만 내부 스크롤 -->
           <div class="holdings-scroll">
-            <p class="table-section-label">보유 종목</p>
             <div v-for="h in stats" :key="h.id" class="table-row">
               <div style="flex:2">
                 <p class="h-name">{{ h.name }}</p>
@@ -435,7 +434,6 @@ onUnmounted(() => {
   border-radius: 9999px;
 }
 .holdings-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-.table-section-label { font-size: 12px; color: #6b7280; padding: 10px 16px 4px; }
 .table-row {
   display: flex; align-items: center; padding: 12px 16px;
   border-bottom: 1px solid #f3f4f6;

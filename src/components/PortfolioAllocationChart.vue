@@ -148,10 +148,6 @@ function fmtAmt(n) { return Number(n).toLocaleString() + '원' }
         </div>
       </div>
     </div>
-
-    <p v-if="topItem" class="chart-caption">
-      비중 1위: {{ topItem.name }} {{ fmtPct(topItem.pct) }}
-    </p>
   </div>
 </template>
 
@@ -249,13 +245,5 @@ function fmtAmt(n) { return Number(n).toLocaleString() + '원' }
   font-size: 13px;
   font-weight: 800;
   flex-shrink: 0;
-}
-
-/* ── 하단 요약 ── */
-.chart-caption {
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 12px;
-  color: #6b7280;
-  margin: 0;
 }
 </style>

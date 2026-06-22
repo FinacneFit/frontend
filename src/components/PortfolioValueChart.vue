@@ -6,12 +6,20 @@ const portfolioStore = usePortfolioStore()
 
 const COLORS = ['#1b78fd', '#2adbc6', '#8b5cf6', '#f59e0b', '#10b981']
 
-// 평가금액 내림차순 정렬
-const sortedByValue = computed(() =>
+const sorted = computed(() =>
   [...portfolioStore.holdingsWithStats].sort((a, b) => b.value - a.value)
 )
 
-const maxValue = computed(() => sortedByValue.value[0]?.value ?? 0)
+// 상위 4개 + 나머지를 기타로 묶기
+const displayRows = computed(() => {
+  const top = sorted.value.slice(0, 4)
+  const rest = sorted.value.slice(4)
+  if (rest.length === 0) return top
+  const etcValue = rest.reduce((s, h) => s + h.value, 0)
+  return [...top, { id: '__etc__', name: '기타', value: etcValue }]
+})
+
+const maxValue = computed(() => displayRows.value[0]?.value ?? 0)
 const hasData  = computed(() => portfolioStore.holdingsWithStats.length > 0)
 
 function barWidth(value) {
@@ -32,7 +40,7 @@ function fmt(n) { return Number(n).toLocaleString() + '원' }
     <div v-if="!hasData" class="empty-state">아직 보유 종목이 없습니다.</div>
 
     <div v-else class="bars">
-      <div v-for="(h, i) in sortedByValue" :key="h.id" class="bar-row">
+      <div v-for="(h, i) in displayRows" :key="h.id" class="bar-row">
         <span class="bar-label">{{ h.name }}</span>
         <div class="bar-track">
           <div
