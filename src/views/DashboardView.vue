@@ -97,7 +97,8 @@ onUnmounted(() => {
         </button>
       </div>
       <div class="header-right">
-        <button class="btn-community" @click="router.push('/community')">커뮤니티로 이동</button>
+        <button class="btn-community" @click="router.push('/deposits')">예금·적금</button>
+        <button class="btn-community" @click="router.push('/community')">커뮤니티</button>
         <button class="btn-logout" @click="logout">로그아웃</button>
         <button class="user-info" @click="router.push('/mypage')">
           <div class="user-text">
