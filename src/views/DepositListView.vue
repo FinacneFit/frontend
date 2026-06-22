@@ -7,6 +7,7 @@ import { BANKS } from '@/data/mockDeposits'
 import DepositDetailPanel from '@/components/deposits/DepositDetailPanel.vue'
 import DepositSaveModal from '@/components/deposits/DepositSaveModal.vue'
 import logoImg from '@/assets/logo.png'
+import AppHeader from '@/components/AppHeader.vue'
 
 const router       = useRouter()
 const authStore    = useAuthStore()
@@ -134,27 +135,7 @@ onUnmounted(() => clearTimeout(_toastTimer))
   <div class="page-shell">
 
     <!-- ── 헤더 ── -->
-    <header class="app-header">
-      <div class="header-left">
-        <button class="logo-btn" @click="router.push('/dashboard')">
-          <img :src="logoImg" class="logo-img" alt="FinFit" />
-          <span class="logo-text">FinFit</span>
-        </button>
-        <span class="page-badge">예금·적금</span>
-      </div>
-      <div class="header-right">
-        <button class="btn-nav" @click="router.push('/dashboard')">대시보드</button>
-        <button class="btn-nav" @click="router.push('/community')">커뮤니티</button>
-        <button class="btn-logout" @click="logout">로그아웃</button>
-        <button class="user-info" @click="router.push('/mypage')">
-          <div class="user-text">
-            <span class="user-name"><span class="name-blue">{{ nickname }}</span> 님</span>
-            <span class="user-type">{{ resultType }}</span>
-          </div>
-          <div class="avatar">{{ initial }}</div>
-        </button>
-      </div>
-    </header>
+    <AppHeader />
 
     <!-- ── 본문 ── -->
     <div class="page-body">

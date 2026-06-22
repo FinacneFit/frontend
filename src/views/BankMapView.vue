@@ -1,34 +1,7 @@
 <template>
   <div class="app-shell">
     <!-- ── HEADER ── -->
-    <header class="app-header">
-      <div class="header-left">
-        <button class="logo-btn" @click="router.push('/dashboard')">
-          <img :src="logoImg" class="logo-img" alt="FinFit" />
-          <span class="logo-text">FinFit</span>
-        </button>
-      </div>
-
-      <div class="header-right">
-        <button class="btn-community" @click="router.push('/deposits')">예금·적금</button>
-        <button class="btn-community" @click="router.push('/spot-assets')">현물 차트</button>
-        <button class="btn-community" @click="router.push('/stock-videos')">주식 영상</button>
-        <button class="btn-community" @click="router.push('/banks')">은행 찾기</button>
-        <button class="btn-community" @click="router.push('/community')">커뮤니티</button>
-
-        <button class="btn-logout" @click="logout">로그아웃</button>
-
-        <button class="user-info" @click="router.push('/mypage')">
-          <div class="user-text">
-            <span class="user-name">
-              <span class="name-blue">{{ nickname }}</span> 님
-            </span>
-            <span class="user-type">{{ resultType }}</span>
-          </div>
-          <div class="avatar">{{ initial }}</div>
-        </button>
-      </div>
-    </header>
+    <AppHeader />
 
     <!-- ── BODY ── -->
     <main class="bank-page">
@@ -139,6 +112,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import logoImg from '@/assets/logo.png'
+import AppHeader from '@/components/AppHeader.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

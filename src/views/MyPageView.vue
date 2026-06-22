@@ -8,6 +8,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
 import logoImg from '@/assets/logo.png'
+import AppHeader from '@/components/AppHeader.vue'
 
 const router          = useRouter()
 const authStore       = useAuthStore()
@@ -101,26 +102,7 @@ onMounted(() => {
 <template>
   <div class="mp-shell">
     <!-- ── 헤더 ── -->
-    <header class="mp-header">
-      <div class="header-left">
-        <button class="logo-btn" @click="router.push('/dashboard')">
-          <img :src="logoImg" class="logo-img" alt="FinFit" />
-          <span class="logo-text">FinFit</span>
-        </button>
-        <span class="page-title">마이페이지</span>
-      </div>
-      <div class="header-right">
-        <button class="btn-home" @click="router.push('/dashboard')">🏠 홈으로</button>
-        <button class="btn-logout" @click="logout">로그아웃</button>
-        <div class="user-chip">
-          <div class="user-text">
-            <span class="user-name"><span class="blue">{{ nickname }}</span> 님</span>
-            <span class="user-type">{{ resultType }}</span>
-          </div>
-          <UserAvatar :nickname="nickname" size="md" />
-        </div>
-      </div>
-    </header>
+    <AppHeader />
 
     <!-- ── 바디 ── -->
     <div class="mp-body">
