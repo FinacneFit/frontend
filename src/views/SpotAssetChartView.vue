@@ -66,6 +66,60 @@
           </div>
         </section>
 
+        <section class="filter-card">
+          <div class="filter-header">
+            <div>
+              <h2>기간 선택</h2>
+              <p>
+                시작일과 종료일을 선택하면 해당 기간의 {{ currentMeta.label }} 가격 데이터만 표시됩니다.
+              </p>
+            </div>
+
+            <button type="button" class="btn-reset" @click="resetDateFilter">
+              전체 기간 보기
+            </button>
+          </div>
+
+          <div class="filter-row">
+            <label class="date-field">
+              <span>시작일</span>
+              <input
+                v-model="startDate"
+                type="date"
+                :min="minAvailableDate"
+                :max="maxAvailableDate"
+              />
+            </label>
+
+            <label class="date-field">
+              <span>종료일</span>
+              <input
+                v-model="endDate"
+                type="date"
+                :min="minAvailableDate"
+                :max="maxAvailableDate"
+              />
+            </label>
+
+            <div class="filter-summary">
+              <span>조회 데이터</span>
+              <strong>{{ filteredPrices.length.toLocaleString() }}개</strong>
+            </div>
+          </div>
+
+          <p v-if="dateErrorMessage" class="filter-message error">
+            {{ dateErrorMessage }}
+          </p>
+
+          <p v-else-if="isDateFiltered" class="filter-message">
+            {{ startDate || minAvailableDate }}부터 {{ endDate || maxAvailableDate }}까지의 데이터를 표시합니다.
+          </p>
+
+          <p v-else class="filter-message">
+            날짜를 선택하지 않아 전체 기간 데이터를 표시합니다.
+          </p>
+        </section>
+
         <section class="chart-card">
           <div class="chart-header">
             <div>
@@ -74,7 +128,7 @@
             </div>
 
             <div class="latest-price" v-if="latestPrice">
-              <span>최근 가격</span>
+              <span>선택 기간 최근 가격</span>
               <strong>{{ formatPrice(latestPrice.close) }}</strong>
               <small>{{ latestPrice.date }}</small>
             </div>
@@ -126,24 +180,24 @@
           </div>
 
           <div v-else class="empty-state">
-            차트에 표시할 데이터가 없습니다.
+            {{ chartEmptyMessage }}
           </div>
         </section>
 
         <section class="summary-grid">
           <article class="summary-card">
-            <span>최고가</span>
+            <span>선택 기간 최고가</span>
             <strong>{{ formatPrice(maxPrice) }}</strong>
           </article>
 
           <article class="summary-card">
-            <span>최저가</span>
+            <span>선택 기간 최저가</span>
             <strong>{{ formatPrice(minPrice) }}</strong>
           </article>
 
           <article class="summary-card">
-            <span>데이터 수</span>
-            <strong>{{ currentPrices.length.toLocaleString() }}개</strong>
+            <span>선택 기간 데이터 수</span>
+            <strong>{{ filteredPrices.length.toLocaleString() }}개</strong>
           </article>
         </section>
 
@@ -151,11 +205,11 @@
           <div class="recent-header">
             <div>
               <h2>최근 가격 데이터</h2>
-              <p>가장 최근 날짜 기준 8개의 가격 데이터입니다.</p>
+              <p>선택한 기간 안에서 가장 최근 날짜 기준 8개의 가격 데이터입니다.</p>
             </div>
           </div>
 
-          <div class="recent-table-wrap">
+          <div v-if="recentRows.length > 0" class="recent-table-wrap">
             <table class="recent-table">
               <thead>
                 <tr>
@@ -179,6 +233,10 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div v-else class="empty-state small">
+            선택한 기간에 표시할 가격 데이터가 없습니다.
           </div>
         </section>
       </div>
@@ -206,6 +264,8 @@ function logout() {
 }
 
 const selectedAsset = ref('gold')
+const startDate = ref('')
+const endDate = ref('')
 
 const currentMeta = computed(() => spotAssetMeta[selectedAsset.value])
 
@@ -213,31 +273,74 @@ const currentPrices = computed(() => {
   return spotAssetPrices[selectedAsset.value] || []
 })
 
-const visiblePrices = computed(() => {
-  return currentPrices.value.slice(-120)
+const minAvailableDate = computed(() => {
+  if (currentPrices.value.length === 0) return ''
+  return currentPrices.value[0].date
+})
+
+const maxAvailableDate = computed(() => {
+  if (currentPrices.value.length === 0) return ''
+  return currentPrices.value[currentPrices.value.length - 1].date
+})
+
+const isDateFiltered = computed(() => {
+  return Boolean(startDate.value || endDate.value)
+})
+
+const dateErrorMessage = computed(() => {
+  if (startDate.value && endDate.value && startDate.value > endDate.value) {
+    return '시작일은 종료일보다 늦을 수 없습니다. 날짜를 다시 선택해주세요.'
+  }
+
+  return ''
+})
+
+const filteredPrices = computed(() => {
+  if (dateErrorMessage.value) {
+    return []
+  }
+
+  return currentPrices.value.filter((item) => {
+    const isAfterStart = startDate.value ? item.date >= startDate.value : true
+    const isBeforeEnd = endDate.value ? item.date <= endDate.value : true
+
+    return isAfterStart && isBeforeEnd
+  })
 })
 
 const recentRows = computed(() => {
-  return currentPrices.value.slice(-8).reverse()
+  return filteredPrices.value.slice(-8).reverse()
 })
 
 const latestPrice = computed(() => {
-  if (currentPrices.value.length === 0) return null
-  return currentPrices.value[currentPrices.value.length - 1]
+  if (filteredPrices.value.length === 0) return null
+  return filteredPrices.value[filteredPrices.value.length - 1]
 })
 
 const minPrice = computed(() => {
-  if (visiblePrices.value.length === 0) return 0
-  return Math.min(...visiblePrices.value.map((item) => item.close))
+  if (filteredPrices.value.length === 0) return null
+  return Math.min(...filteredPrices.value.map((item) => item.close))
 })
 
 const maxPrice = computed(() => {
-  if (visiblePrices.value.length === 0) return 0
-  return Math.max(...visiblePrices.value.map((item) => item.close))
+  if (filteredPrices.value.length === 0) return null
+  return Math.max(...filteredPrices.value.map((item) => item.close))
+})
+
+const chartEmptyMessage = computed(() => {
+  if (dateErrorMessage.value) {
+    return dateErrorMessage.value
+  }
+
+  if (isDateFiltered.value) {
+    return '선택한 기간에 해당하는 가격 데이터가 없습니다.'
+  }
+
+  return '차트에 표시할 데이터가 없습니다.'
 })
 
 const chartPoints = computed(() => {
-  const data = visiblePrices.value
+  const data = filteredPrices.value
 
   if (data.length === 0) {
     return []
@@ -282,6 +385,10 @@ const yTicks = computed(() => {
   const startY = 30
   const height = 240
 
+  if (filteredPrices.value.length === 0) {
+    return []
+  }
+
   for (let i = 0; i < count; i += 1) {
     const ratio = i / (count - 1)
     const price = maxPrice.value - (maxPrice.value - minPrice.value) * ratio
@@ -309,6 +416,11 @@ const xLabels = computed(() => {
   }))
 })
 
+function resetDateFilter() {
+  startDate.value = ''
+  endDate.value = ''
+}
+
 function formatPrice(value) {
   if (value === null || value === undefined) {
     return '-'
@@ -321,6 +433,10 @@ function formatPrice(value) {
 }
 
 function formatCompactPrice(value) {
+  if (value === null || value === undefined) {
+    return '-'
+  }
+
   return `$${Math.round(value).toLocaleString()}`
 }
 
@@ -472,7 +588,7 @@ function formatVolume(value) {
   justify-content: space-between;
   gap: 24px;
   max-width: 960px;
-  margin: 0 auto 28px;
+  margin: 0 auto 20px;
 }
 
 .eyebrow {
@@ -519,6 +635,121 @@ h1 {
   background: #ffffff;
   color: #111827;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.filter-card {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto 20px;
+  padding: 20px 22px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.filter-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.filter-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.btn-reset {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-reset:hover {
+  border-color: #1b78fd;
+  color: #1b78fd;
+}
+
+.filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-field span,
+.filter-summary span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.date-field input {
+  width: 190px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #172033;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.date-field input:focus {
+  border-color: #1b78fd;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(27, 120, 253, 0.12);
+}
+
+.filter-summary {
+  width: 150px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.filter-summary strong {
+  color: #1b78fd;
+  font-size: 15px;
+}
+
+.filter-message {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.filter-message.error {
+  color: #ef4444;
+  font-weight: 700;
 }
 
 .chart-card {
@@ -606,6 +837,10 @@ h1 {
   padding: 60px 0;
   text-align: center;
   color: #64748b;
+}
+
+.empty-state.small {
+  padding: 36px 0;
 }
 
 .summary-grid {
@@ -739,9 +974,20 @@ h1 {
 
   .page-header,
   .chart-header,
-  .recent-header {
+  .recent-header,
+  .filter-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .filter-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .date-field input,
+  .filter-summary {
+    width: 100%;
   }
 
   .latest-price {

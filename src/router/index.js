@@ -33,6 +33,8 @@ const router = createRouter({
     { path: '/community/:postId', component: CommunityDetailView },
     { path: '/deposits', component: DepositListView },
     { path: '/spot-assets', component: SpotAssetChartView },
+    {path: '/stock-videos',name: 'stock-videos', component: () => import('@/views/StockVideoSearchView.vue'),},
+    {path: '/stock-videos/:videoId',name: 'stock-video-detail', component: () => import('@/views/StockVideoDetailView.vue'),},
   ],
 })
 
