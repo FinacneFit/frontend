@@ -17,10 +17,19 @@ const surveyStore    = useSurveyStore()
 const portfolioStore = usePortfolioStore()
 const chatStore      = useChatStore()
 
+const TYPE_DESC = {
+  '안정형':     '예·적금 중심, 원금 보존 최우선',
+  '안정추구형': '채권·배당주 위주, 낮은 변동성',
+  '위험중립형': '수익과 안정의 균형 추구',
+  '적극투자형': '성장주·ETF 중심, 수익 추구',
+  '공격투자형': '고위험 고수익, 적극적 투자',
+}
+
 const nickname   = computed(() => authStore.user?.nickname ?? '사용자')
 const resultType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '안정추구형')
 const riskScore  = computed(() => authStore.user?.risk_score  || surveyStore.riskScore  || 0)
 const initial    = computed(() => nickname.value.charAt(0))
+const typeDesc   = computed(() => TYPE_DESC[resultType.value] ?? '')
 
 // ── 추천 종목 ──
 const recommendedStocks = ref([])
@@ -112,7 +121,7 @@ onUnmounted(() => {
         <div class="profile-card">
           <div class="profile-left">
             <p class="profile-type">{{ resultType }}</p>
-            <p class="profile-desc">ETF, KOSPI 등 안정적인 투자 종목</p>
+            <p class="profile-desc">{{ typeDesc }}</p>
           </div>
           <div class="profile-score-box">
             <p class="score-label">성향점수</p>

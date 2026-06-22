@@ -3,39 +3,46 @@ import { surveyApi } from '@/api/surveyApi'
 import { mockSurveyQuestions } from '@/data/mockSurveyQuestions'
 import { useAuthStore } from '@/stores/authStore'
 
-// 15문항 × (1/3/6/8)점 → 범위 15~120
+// 15문항 × (1/3/6/8)점 → 원점수 15~120 → 100점 만점으로 정규화
+const SCORE_MIN = 15
+const SCORE_MAX = 120
+
+function normalizeScore(raw) {
+  return Math.round((raw - SCORE_MIN) / (SCORE_MAX - SCORE_MIN) * 100)
+}
+
 const RESULT_TYPES = [
   {
-    minScore: 15,
-    maxScore: 35,
+    minScore: 0,
+    maxScore: 19,
     type: '안정형',
     description:
       '원금 손실을 거의 원하지 않고, 예금이나 적금 수준의 안정성을 가장 중요하게 생각하는 유형입니다.',
   },
   {
-    minScore: 36,
-    maxScore: 55,
+    minScore: 20,
+    maxScore: 38,
     type: '안정추구형',
     description:
       '안정성을 우선하지만 예·적금보다 높은 수익을 위해 일부 변동성은 감수할 수 있는 유형입니다.',
   },
   {
-    minScore: 56,
-    maxScore: 75,
+    minScore: 39,
+    maxScore: 57,
     type: '위험중립형',
     description:
       '투자에는 위험이 따른다는 점을 이해하고 있으며, 수익과 안정성의 균형을 추구하는 유형입니다.',
   },
   {
-    minScore: 76,
-    maxScore: 95,
+    minScore: 58,
+    maxScore: 76,
     type: '적극투자형',
     description:
       '일정 수준의 손실을 감수하더라도 시장 평균 이상의 수익을 추구하는 유형입니다.',
   },
   {
-    minScore: 96,
-    maxScore: 120,
+    minScore: 77,
+    maxScore: 100,
     type: '공격투자형',
     description:
       '높은 수익을 위해 큰 변동성과 손실 가능성도 적극적으로 감수할 수 있는 유형입니다.',
@@ -49,7 +56,8 @@ const QUESTIONS = mockSurveyQuestions.map((q, qi) => ({
 }))
 
 function localCalc(answers) {
-  const score = answers.reduce((s, a) => s + (a?.score ?? 0), 0)
+  const raw   = answers.reduce((s, a) => s + (a?.score ?? 0), 0)
+  const score = normalizeScore(raw)
   const found = RESULT_TYPES.find((r) => score >= r.minScore && score <= r.maxScore)
   return {
     riskScore:         score,
