@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { chatApi } from '@/api/chatApi'
+import { useAuthStore } from '@/stores/authStore'
 
 const CHAT_KEY = 'finfit_chat'
 const INITIAL_MSG = { role: 'bot', text: '안녕하세요! 추천 종목을 담으면 포트폴리오를 분석해드릴게요.' }
@@ -30,11 +31,17 @@ export const useChatStore = defineStore('chat', {
     },
 
     async sendMessage(text) {
+      const authStore = useAuthStore()
       const history = this.messages.filter((m) => m.role !== 'bot' || this.messages.indexOf(m) > 0)
       this.messages.push({ role: 'user', text })
       this.isTyping = true
+      // DB 미저장 상태를 대비해 프론트 캐시 값도 함께 전달
+      const userContext = {
+        investment_type: authStore.user?.investment_type || '',
+        risk_score:      authStore.user?.risk_score      || 0,
+      }
       try {
-        const { reply } = await chatApi.sendMessage(text, history)
+        const { reply } = await chatApi.sendMessage(text, history, userContext)
         this.messages.push({ role: 'bot', text: reply })
       } catch (err) {
         this.messages.push({ role: 'bot', text: '오류가 발생했습니다. 다시 시도해주세요.' })
