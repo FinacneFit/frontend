@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import LandingView from '@/views/LandingView.vue'
 import SignupView from '@/views/auth/SignupView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
@@ -15,6 +16,9 @@ import CommunityMyListView from '@/views/community/CommunityMyListView.vue'
 import CommunityEditView from '@/views/community/CommunityEditView.vue'
 import DepositListView from '@/views/DepositListView.vue'
 import SpotAssetChartView from '@/views/SpotAssetChartView.vue'
+
+// 로그인 없이 접근 가능한 페이지
+const PUBLIC_PATHS = ['/', '/login', '/signup']
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,10 +39,17 @@ const router = createRouter({
     { path: '/community/:postId/edit', component: CommunityEditView },
     { path: '/deposits', component: DepositListView },
     { path: '/spot-assets', component: SpotAssetChartView },
-    {path: '/stock-videos',name: 'stock-videos', component: () => import('@/views/StockVideoSearchView.vue'),},
-    {path: '/stock-videos/:videoId',name: 'stock-video-detail', component: () => import('@/views/StockVideoDetailView.vue'),},
-    {path: '/banks',name: 'banks',component: () => import('@/views/BankMapView.vue'),},
+    { path: '/stock-videos', name: 'stock-videos', component: () => import('@/views/StockVideoSearchView.vue') },
+    { path: '/stock-videos/:videoId', name: 'stock-video-detail', component: () => import('@/views/StockVideoDetailView.vue') },
+    { path: '/banks', name: 'banks', component: () => import('@/views/BankMapView.vue') },
   ],
+})
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore()
+  if (!authStore.isLoggedIn && !PUBLIC_PATHS.includes(to.path)) {
+    return { path: '/login' }
+  }
 })
 
 export default router
