@@ -49,10 +49,14 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const nickname = computed(() => authStore.user?.nickname ?? '사용자')
-const resultType = computed(() => authStore.user?.investment_type ?? '안정추구형')
+const resultType = computed(() => authStore.user?.investment_type || '성향 미설정')
 const initial = computed(() => nickname.value.charAt(0))
 
 const navItems = [
+  {
+    label: '메인',
+    path: '/dashboard',
+  },
   {
     label: '예금·적금',
     path: '/deposits',

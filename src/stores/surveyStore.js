@@ -96,6 +96,7 @@ export const useSurveyStore = defineStore('survey', {
       this.resultDescription = local.resultDescription
 
       // 2) 백엔드에 결과 저장 시도 (실패해도 로컬 결과 유지)
+      const authStore = useAuthStore()
       try {
         const apiAnswers = this.answers.map((a) => ({
           question_id: a.questionId,
@@ -107,7 +108,6 @@ export const useSurveyStore = defineStore('survey', {
         this.resultDescription = result.result_description
 
         // authStore.user에도 즉시 반영 (페이지 이동/새로고침 전에도 점수 표시)
-        const authStore = useAuthStore()
         if (authStore.user) {
           authStore.user = {
             ...authStore.user,
@@ -117,7 +117,15 @@ export const useSurveyStore = defineStore('survey', {
           localStorage.setItem('finfit_user', JSON.stringify(authStore.user))
         }
       } catch (_) {
-        // 로컬 계산 결과 그대로 사용
+        // API 실패해도 로컬 결과를 authStore에 저장해 세션 내 표시 유지
+        if (authStore.user) {
+          authStore.user = {
+            ...authStore.user,
+            risk_score:      this.riskScore,
+            investment_type: this.resultType,
+          }
+          localStorage.setItem('finfit_user', JSON.stringify(authStore.user))
+        }
       } finally {
         this.isSubmitting = false
       }

@@ -79,10 +79,17 @@ export const useAuthStore = defineStore('auth', {
       if (!this.token) return
       try {
         const user = await authApi.getMe()
+        // DB 값이 없을 때 로컬 캐시 값 보존 (설문 API 저장 실패 대비)
+        if (!user.investment_type && this.user?.investment_type) {
+          user.investment_type = this.user.investment_type
+        }
+        if (!user.risk_score && this.user?.risk_score) {
+          user.risk_score = this.user.risk_score
+        }
         this.user = user
         localStorage.setItem(USER_KEY, JSON.stringify(user))
       } catch (_) {
-        this._clear()
+        // 네트워크 오류 시 기존 세션 유지 (401 전용 로그아웃은 각 API 호출 지점에서 처리)
       }
     },
   },
