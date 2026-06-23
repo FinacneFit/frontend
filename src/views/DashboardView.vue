@@ -26,11 +26,20 @@ const TYPE_DESC = {
   '공격투자형': '고위험 고수익, 적극적 투자',
 }
 
+const TYPE_TOOLTIP = {
+  '안정형':     '원금 손실을 거의 원하지 않고, 예금이나 적금 수준의 안정성을 가장 중요하게 생각하는 유형입니다.',
+  '안정추구형': '안정성을 우선하지만 예·적금보다 높은 수익을 위해 일부 변동성은 감수할 수 있는 유형입니다.',
+  '위험중립형': '투자에는 위험이 따른다는 점을 이해하고 있으며, 수익과 안정성의 균형을 추구하는 유형입니다.',
+  '적극투자형': '일정 수준의 손실을 감수하더라도 시장 평균 이상의 수익을 추구하는 유형입니다.',
+  '공격투자형': '높은 수익을 위해 큰 변동성과 손실 가능성도 적극적으로 감수할 수 있는 유형입니다.',
+}
+
 const nickname   = computed(() => authStore.user?.nickname ?? '사용자')
 const resultType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '안정추구형')
 const riskScore  = computed(() => authStore.user?.risk_score  || surveyStore.riskScore  || 0)
 const initial    = computed(() => nickname.value.charAt(0))
-const typeDesc   = computed(() => TYPE_DESC[resultType.value] ?? '')
+const typeDesc    = computed(() => TYPE_DESC[resultType.value] ?? '')
+const typeTooltip = computed(() => TYPE_TOOLTIP[resultType.value] ?? '')
 
 // ── 추천 종목 ──
 const recommendedStocks = ref([])
@@ -103,7 +112,13 @@ onUnmounted(() => {
 
         <div class="profile-card">
           <div class="profile-left">
-            <p class="profile-type">{{ resultType }}</p>
+            <div class="profile-type-row">
+              <p class="profile-type">{{ resultType }}</p>
+              <div v-if="typeTooltip" class="info-icon">
+                !
+                <div class="tooltip-box">{{ typeTooltip }}</div>
+              </div>
+            </div>
             <p class="profile-desc">{{ typeDesc }}</p>
           </div>
           <div class="profile-score-box">
@@ -329,8 +344,62 @@ onUnmounted(() => {
   border-radius: 12px; padding: 14px; color: #fff;
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
 }
+.profile-type-row { display: flex; align-items: center; gap: 6px; }
 .profile-type { font-weight: 700; font-size: 15px; }
 .profile-desc { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+
+.info-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.info-icon:hover .tooltip-box { opacity: 1; pointer-events: auto; }
+
+.tooltip-box {
+  position: absolute;
+  top: calc(100% + 8px);
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 200;
+  white-space: normal;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+.tooltip-box::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  top: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: #1f2937;
+}
 .profile-score-box { text-align: center; }
 .score-label { font-size: 10px; opacity: 0.8; }
 .score-num { font-weight: 700; font-size: 24px; }
