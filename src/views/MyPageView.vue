@@ -196,17 +196,22 @@ async function removeSavedDeposit(productId) {
 
 function scrollToTab(tab) {
   activeTab.value = tab
-
   nextTick(() => {
-    tabSectionRef.value?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
+    tabSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
 }
 
+// ── 통합 자산 ──
+const totalAsset = computed(() => totalValue.value + depositTotalAmount.value)
+const totalStockProfit = computed(() => totalValue.value - totalInvested.value)
+const totalProfit = computed(() => totalStockProfit.value + depositExpectedInterest.value)
+
 // ── 내가 쓴 글 ──
 const myPostCount = computed(() => authStore.user?.post_count ?? 0)
+
+function goToMyPosts() {
+  router.push('/community/my')
+}
 
 // ── UserProfileModal ──
 const selectedUserId = ref(null)
@@ -270,9 +275,13 @@ onMounted(() => {
 
           <span class="count-divider">·</span>
 
-          <span class="count-text">
+          <button
+            class="count-btn"
+            type="button"
+            @click="goToMyPosts"
+          >
             <strong>{{ myPostCount }}</strong>게시글
-          </span>
+          </button>
         </div>
 
         <div class="bio-section">
@@ -372,7 +381,59 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- ③ 포트폴리오 요약 -->
+      <!-- ③ 통합 자산 요약 -->
+      <section class="info-section asset-card">
+        <div class="asset-header">
+          <h3 class="section-heading" style="margin:0">통합 자산</h3>
+          <span class="asset-date">기준: 현재가</span>
+        </div>
+
+        <div class="asset-total">
+          <span class="asset-total-label">총 자산</span>
+          <span class="asset-total-value">{{ fmt(totalAsset) }}<em>원</em></span>
+          <span class="asset-total-profit" :class="totalProfit >= 0 ? 'pos' : 'neg'">
+            {{ totalProfit >= 0 ? '+' : '' }}{{ fmt(totalProfit) }}원
+          </span>
+        </div>
+
+        <div class="asset-breakdown">
+          <div class="asset-item">
+            <div class="asset-item-icon stock-icon">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <polyline points="1 13 5 8 9 11 13 5 17 2" stroke="#1b78fd" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </div>
+            <div class="asset-item-info">
+              <span class="asset-item-label">주식 평가액</span>
+              <span class="asset-item-value">{{ fmt(totalValue) }}원</span>
+            </div>
+            <span class="asset-item-sub" :class="totalStockProfit >= 0 ? 'pos' : 'neg'">
+              {{ totalStockProfit >= 0 ? '+' : '' }}{{ fmt(totalStockProfit) }}원
+            </span>
+          </div>
+
+          <div class="asset-divider" />
+
+          <div class="asset-item">
+            <div class="asset-item-icon deposit-icon">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="1" y="5" width="16" height="11" rx="2" stroke="#2adbc6" stroke-width="1.8"/>
+                <path d="M5 5V4a4 4 0 0 1 8 0v1" stroke="#2adbc6" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="9" cy="11" r="1.5" fill="#2adbc6"/>
+              </svg>
+            </div>
+            <div class="asset-item-info">
+              <span class="asset-item-label">예금·적금</span>
+              <span class="asset-item-value">{{ fmt(depositTotalAmount) }}원</span>
+            </div>
+            <span class="asset-item-sub pos">
+              +{{ fmt(depositExpectedInterest) }}원 예상이자
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 포트폴리오 요약 (주식/예금 탭) -->
       <section class="info-section">
         <div class="portfolio-heading-row">
           <h3 class="section-heading portfolio-heading">포트폴리오 요약</h3>
@@ -523,7 +584,7 @@ onMounted(() => {
         </template>
       </section>
 
-      <!-- ④ 팔로워 / 팔로잉 탭 -->
+      <!-- ⑤ 팔로워 / 팔로잉 탭 -->
       <section ref="tabSectionRef" class="info-section">
         <div class="tab-header">
           <button
@@ -574,7 +635,7 @@ onMounted(() => {
           </p>
         </div>
 
-        <div v-else class="user-list">
+        <div v-if="activeTab === 'following'" class="user-list">
           <div
             v-for="user in followingUsers"
             :key="user.id"
@@ -1325,4 +1386,114 @@ onMounted(() => {
   flex-shrink: 0;
   width: 58px;
 }
+
+/* ── 통합 자산 카드 ── */
+.asset-card {
+  padding: 22px 24px 20px;
+}
+
+.asset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.asset-date {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.asset-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.asset-total-label {
+  font-size: 13px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.asset-total-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.asset-total-value em {
+  font-style: normal;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-left: 2px;
+}
+
+.asset-total-profit {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.asset-breakdown {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.asset-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.asset-divider {
+  height: 1px;
+  background: #f3f4f6;
+}
+
+.asset-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stock-icon   { background: rgba(27, 120, 253, 0.1); }
+.deposit-icon { background: rgba(42, 219, 198, 0.1); }
+
+.asset-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.asset-item-label {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.asset-item-value {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: #111827;
+}
+
+.asset-item-sub {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
 </style>

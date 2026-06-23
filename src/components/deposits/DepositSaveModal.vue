@@ -7,22 +7,35 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // null = 담기 모드, object = 수정 모드
+  editData: {
+    type: Object,
+    default: null,
+  },
 })
 
-const emit = defineEmits(['close', 'saved'])
+const emit = defineEmits(['close', 'saved', 'deleted'])
 
 const depositStore = useDepositStore()
+const isEditMode = computed(() => props.editData !== null)
 
-const amount = ref(1000000)
-const amountStr = ref('1,000,000')
-const rateVal = ref(Number(props.product.maxRate || props.product.baseRate || 0))
-const memo = ref('')
-const isSubmitting = ref(false)
+// 수정 모드일 때 기존 값으로 초기화
+const initAmount = props.editData?.amount || 1000000
+const initRate   = props.editData?.final_rate ?? Number(props.product.maxRate || props.product.baseRate || 0)
+const initMemo   = props.editData?.memo || ''
 
-const TYPE_LABEL = {
-  deposit: '예금',
-  saving: '적금',
+function fmt(value) {
+  return Math.round(Number(value || 0)).toLocaleString('ko-KR')
 }
+
+const amount      = ref(initAmount)
+const amountStr   = ref(fmt(initAmount))
+const rateVal     = ref(initRate)
+const memo        = ref(initMemo)
+const isSubmitting = ref(false)
+const isDeleting   = ref(false)
+
+const TYPE_LABEL = { deposit: '예금', saving: '적금' }
 
 function termToMonths(term) {
   return Number(String(term).replace('개월', '')) || 12
@@ -32,24 +45,17 @@ function parseMoney(value) {
   return Number(String(value).replace(/[^\d]/g, '')) || 0
 }
 
-function fmt(value) {
-  return Math.round(Number(value || 0)).toLocaleString('ko-KR')
-}
-
 const maturity = computed(() => {
-  const months = termToMonths(props.product.term)
+  const months    = termToMonths(props.product.term)
   const principal = Number(amount.value || 0)
-  const rate = Number(rateVal.value || 0)
-
+  const rate      = Number(rateVal.value || 0)
   return principal + principal * (rate / 100) * (months / 12)
 })
 
-const interest = computed(() => {
-  return maturity.value - Number(amount.value || 0)
-})
+const interest = computed(() => maturity.value - Number(amount.value || 0))
 
 function onAmountInput(event) {
-  const value = parseMoney(event.target.value)
+  const value  = parseMoney(event.target.value)
   amount.value = value
   amountStr.value = value ? fmt(value) : ''
 }
@@ -59,30 +65,25 @@ function onAmountFocus(event) {
 }
 
 function onAmountBlur(event) {
-  const value = parseMoney(event.target.value)
+  const value  = parseMoney(event.target.value)
   amount.value = value
   amountStr.value = value ? fmt(value) : ''
 }
 
 function setAmount(value) {
-  amount.value = value
+  amount.value    = value
   amountStr.value = fmt(value)
 }
 
 async function submit() {
-  if (!amount.value || Number(amount.value) <= 0) {
-    return
-  }
-
+  if (!amount.value || Number(amount.value) <= 0) return
   isSubmitting.value = true
-
   try {
     await depositStore.saveProduct(props.product.id, {
-      amount: Number(amount.value),
+      amount:     Number(amount.value),
       final_rate: Number(rateVal.value || 0),
-      memo: memo.value,
+      memo:       memo.value,
     })
-
     emit('saved', props.product.productName)
     emit('close')
   } finally {
@@ -90,10 +91,20 @@ async function submit() {
   }
 }
 
-function onKeyDown(event) {
-  if (event.key === 'Escape') {
+async function deleteItem() {
+  if (!confirm('포트폴리오에서 삭제할까요?')) return
+  isDeleting.value = true
+  try {
+    await depositStore.deleteSavedProduct(props.product.id)
+    emit('deleted', props.product.productName)
     emit('close')
+  } finally {
+    isDeleting.value = false
   }
+}
+
+function onKeyDown(event) {
+  if (event.key === 'Escape') emit('close')
 }
 
 onMounted(() => {
@@ -110,18 +121,18 @@ onUnmounted(() => {
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="modal-card" role="dialog" aria-modal="true">
-      <button class="close-btn" type="button" aria-label="닫기" @click="emit('close')">
-        ×
-      </button>
+      <button class="close-btn" type="button" aria-label="닫기" @click="emit('close')">×</button>
+
+      <div class="modal-mode-badge" :class="isEditMode ? 'edit' : 'add'">
+        {{ isEditMode ? '수정' : '담기' }}
+      </div>
 
       <h3 class="modal-title">{{ product.productName }}</h3>
 
       <div class="modal-sub">
         <strong>{{ product.bankName }}</strong>
         <span>·</span>
-        <span class="badge" :class="product.productType">
-          {{ TYPE_LABEL[product.productType] }}
-        </span>
+        <span class="badge" :class="product.productType">{{ TYPE_LABEL[product.productType] }}</span>
         <span>·</span>
         <span>{{ product.term }}</span>
       </div>
@@ -132,12 +143,10 @@ onUnmounted(() => {
           <strong>{{ fmt(maturity) }}원</strong>
           <em>+{{ fmt(interest) }}원</em>
         </div>
-
         <div class="calc-card">
           <span>적용 금리</span>
           <strong>{{ Number(rateVal || 0).toFixed(2) }}%</strong>
         </div>
-
         <div class="calc-card">
           <span>가입 기간</span>
           <strong>{{ product.term }}</strong>
@@ -146,7 +155,6 @@ onUnmounted(() => {
 
       <div class="form-row">
         <label class="form-label">납입 금액</label>
-
         <div class="input-with-unit">
           <input
             type="text"
@@ -158,7 +166,6 @@ onUnmounted(() => {
           />
           <span>원</span>
         </div>
-
         <div class="quick-btns">
           <button
             v-for="quick in [[100, '100만'], [500, '500만'], [1000, '1000만'], [3000, '3000만']]"
@@ -173,20 +180,14 @@ onUnmounted(() => {
 
       <div class="form-row">
         <label class="form-label">최종 금리</label>
-
         <div class="input-with-unit">
-          <input
-            v-model="rateVal"
-            type="text"
-            inputmode="decimal"
-          />
+          <input v-model="rateVal" type="text" inputmode="decimal" />
           <span>%</span>
         </div>
       </div>
 
       <div class="form-row">
         <label class="form-label">메모</label>
-
         <textarea
           v-model="memo"
           class="memo-input"
@@ -195,14 +196,27 @@ onUnmounted(() => {
         />
       </div>
 
-      <button
-        class="submit-btn"
-        type="button"
-        :disabled="isSubmitting || !amount || Number(amount) <= 0"
-        @click="submit"
-      >
-        {{ isSubmitting ? '추가 중...' : '포트폴리오에 추가하기' }}
-      </button>
+      <!-- 버튼 영역 -->
+      <div class="action-row" :class="{ 'two-btn': isEditMode }">
+        <button
+          v-if="isEditMode"
+          class="delete-btn"
+          type="button"
+          :disabled="isDeleting"
+          @click="deleteItem"
+        >
+          {{ isDeleting ? '삭제 중...' : '삭제하기' }}
+        </button>
+
+        <button
+          class="submit-btn"
+          type="button"
+          :disabled="isSubmitting || !amount || Number(amount) <= 0"
+          @click="submit"
+        >
+          {{ isSubmitting ? (isEditMode ? '수정 중...' : '추가 중...') : (isEditMode ? '수정하기' : '포트폴리오에 추가하기') }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -230,15 +244,8 @@ onUnmounted(() => {
 }
 
 @keyframes pop {
-  from {
-    transform: translateY(12px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 .close-btn {
@@ -253,9 +260,19 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.close-btn:hover {
-  color: #6b7280;
+.close-btn:hover { color: #6b7280; }
+
+.modal-mode-badge {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
 }
+
+.modal-mode-badge.add  { background: #dbeafe; color: #1d4ed8; }
+.modal-mode-badge.edit { background: #fef3c7; color: #b45309; }
 
 .modal-title {
   margin: 0 0 8px;
@@ -276,10 +293,7 @@ onUnmounted(() => {
   color: #9ca3af;
 }
 
-.modal-sub strong {
-  color: #374151;
-  font-weight: 700;
-}
+.modal-sub strong { color: #374151; font-weight: 700; }
 
 .badge {
   display: inline-flex;
@@ -290,15 +304,8 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-.badge.deposit {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.badge.saving {
-  background: #dcfce7;
-  color: #166534;
-}
+.badge.deposit { background: #dbeafe; color: #1d4ed8; }
+.badge.saving  { background: #dcfce7; color: #166534; }
 
 .calc-cards {
   display: grid;
@@ -314,35 +321,11 @@ onUnmounted(() => {
   padding: 16px;
 }
 
-.calc-card span {
-  display: block;
-  font-family: 'Noto Sans KR', sans-serif;
-  color: #9ca3af;
-  font-size: 12px;
-  margin-bottom: 6px;
-}
+.calc-card span   { display: block; font-family: 'Noto Sans KR', sans-serif; color: #9ca3af; font-size: 12px; margin-bottom: 6px; }
+.calc-card strong { display: block; font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700; color: #111827; }
+.calc-card em     { display: block; margin-top: 4px; font-style: normal; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; color: #ef4444; }
 
-.calc-card strong {
-  display: block;
-  font-family: 'Inter', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: #111827;
-}
-
-.calc-card em {
-  display: block;
-  margin-top: 4px;
-  font-style: normal;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: #ef4444;
-}
-
-.form-row {
-  margin-bottom: 18px;
-}
+.form-row { margin-bottom: 18px; }
 
 .form-label {
   display: block;
@@ -373,24 +356,10 @@ onUnmounted(() => {
   color: #111827;
 }
 
-.input-with-unit span {
-  margin-left: 8px;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 14px;
-  color: #9ca3af;
-}
+.input-with-unit span { margin-left: 8px; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; color: #9ca3af; }
+.input-with-unit:focus-within { border-color: #1b78fd; }
 
-.input-with-unit:focus-within {
-  border-color: #1b78fd;
-}
-
-.quick-btns {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-
+.quick-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .quick-btns button {
   border: 1px solid #e5e7eb;
   background: #fff;
@@ -401,11 +370,7 @@ onUnmounted(() => {
   color: #374151;
   cursor: pointer;
 }
-
-.quick-btns button:hover {
-  border-color: #1b78fd;
-  color: #1b78fd;
-}
+.quick-btns button:hover { border-color: #1b78fd; color: #1b78fd; }
 
 .memo-input {
   width: 100%;
@@ -417,11 +382,29 @@ onUnmounted(() => {
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 14px;
   color: #374151;
+  box-sizing: border-box;
 }
+.memo-input:focus { border-color: #1b78fd; }
 
-.memo-input:focus {
-  border-color: #1b78fd;
+.action-row { display: flex; gap: 10px; }
+.action-row.two-btn .submit-btn { flex: 1; }
+
+.delete-btn {
+  flex-shrink: 0;
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  padding: 14px 20px;
+  background: #fff;
+  color: #ef4444;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
 }
+.delete-btn:hover:not(:disabled)  { background: #ef4444; color: #fff; }
+.delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .submit-btn {
   width: 100%;
@@ -436,23 +419,12 @@ onUnmounted(() => {
   cursor: pointer;
   transition: opacity 0.15s;
 }
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.submit-btn:hover:not(:disabled) { opacity: 0.9; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 640px) {
-  .modal-card {
-    padding: 30px 24px 28px;
-  }
-
-  .calc-cards {
-    grid-template-columns: 1fr;
-  }
+  .modal-card { padding: 30px 24px 28px; }
+  .calc-cards { grid-template-columns: 1fr; }
+  .action-row.two-btn { flex-direction: column; }
 }
 </style>

@@ -34,6 +34,26 @@ const TERMS = ['전체', '1개월', '3개월', '6개월', '12개월', '24개월'
 const JOIN_METHODS = ['전체', '영업점', '인터넷뱅킹', '스마트뱅킹', '전화', '기타']
 const TYPE_LABEL = { deposit: '예금', saving: '적금' }
 
+// 수정 모달용 상태
+const editTarget = ref(null) // { product, savedData }
+
+function openEditModal(product) {
+  const savedItem = depositStore.savedDeposits.find((s) => s.product?.id === product.id)
+  editTarget.value = { product, savedData: savedItem ?? null }
+}
+
+function closeEditModal() {
+  editTarget.value = null
+}
+
+function onEditSaved(name) {
+  showToast(`${name} 정보가 수정되었습니다.`)
+}
+
+function onEditDeleted(name) {
+  showToast(`${name}이 포트폴리오에서 삭제되었습니다.`)
+}
+
 function termToMonths(term) {
   return Number(String(term).replace('개월', '')) || 12
 }
@@ -162,18 +182,11 @@ function openModal(product) {
   saveTarget.value = product
 }
 
-async function handlePortfolioButton(product) {
+function handlePortfolioButton(product) {
   if (depositStore.isSaved(product.id)) {
-    try {
-      await depositStore.deleteSavedProduct(product.id)
-      showToast(`${product.productName}이 포트폴리오에서 제거되었습니다.`)
-    } catch (error) {
-      showToast('포트폴리오에서 제거하지 못했습니다.')
-    }
-
+    openEditModal(product)
     return
   }
-
   openModal(product)
 }
 
@@ -486,7 +499,7 @@ onUnmounted(() => {
                         type="button"
                         @click="handlePortfolioButton(product)"
                       >
-                        {{ depositStore.isSaved(product.id) ? '제거' : '담기' }}
+                        {{ depositStore.isSaved(product.id) ? '수정' : '담기' }}
                       </button>
                     </td>
                   </tr>
@@ -549,11 +562,22 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- 새로 담기 모달 -->
     <DepositSaveModal
       v-if="saveTarget"
       :product="saveTarget"
       @close="closeModal"
       @saved="onSaved"
+    />
+
+    <!-- 수정 모달 -->
+    <DepositSaveModal
+      v-if="editTarget"
+      :product="editTarget.product"
+      :edit-data="editTarget.savedData"
+      @close="closeEditModal"
+      @saved="onEditSaved"
+      @deleted="onEditDeleted"
     />
 
     <div class="toast" :class="{ show: toastShow }">{{ toastMsg }}</div>
