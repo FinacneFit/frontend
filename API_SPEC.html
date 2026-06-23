@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFit API 명세서</title>
+  <style>
+    :root {
+      --blue: #1b78fd;
+      --teal: #2adbc6;
+      --bg: #f3f4f6;
+      --white: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --sub: #6b7280;
+      --red: #ef4444;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --purple: #8b5cf6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--teal) 100%);
+      padding: 48px 40px 40px;
+      color: #fff;
+    }
+    .site-header h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+    .site-header p  { margin-top: 8px; opacity: 0.88; font-size: 15px; }
+    .meta-chips { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .chip {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 9999px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; max-width: 1280px; margin: 0 auto; padding: 32px 24px; gap: 28px; }
+
+    /* ── SIDEBAR NAV ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 24px;
+      align-self: flex-start;
+    }
+    .sidebar nav {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 16px 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .sidebar nav h3 {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--sub);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0 18px 10px;
+    }
+    .sidebar nav a {
+      display: block;
+      padding: 7px 18px;
+      font-size: 13px;
+      color: var(--sub);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    .sidebar nav a:hover {
+      color: var(--blue);
+      border-left-color: var(--blue);
+      background: rgba(27,120,253,0.05);
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+
+    /* ── SECTION CARD ── */
+    .section-card {
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 20px 28px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .section-body { padding: 24px 28px; display: flex; flex-direction: column; gap: 32px; }
+
+    /* ── ENDPOINT ── */
+    .endpoint {}
+    .endpoint-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .endpoint-url {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin-bottom: 14px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 14px;
+    }
+    .method {
+      font-weight: 800;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+    .method.GET    { background: #d1fae5; color: #065f46; }
+    .method.POST   { background: #dbeafe; color: #1e40af; }
+    .method.PATCH  { background: #fef3c7; color: #92400e; }
+    .method.DELETE { background: #fee2e2; color: #991b1b; }
+
+    /* ── AUTH BADGE ── */
+    .auth-required {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--yellow);
+      background: #fefce8;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-bottom: 12px;
+    }
+
+    /* ── DESCRIPTION ── */
+    .desc { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+
+    /* ── PARAM TABLE ── */
+    .param-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    th {
+      background: #f9fafb;
+      text-align: left;
+      padding: 9px 14px;
+      font-weight: 700;
+      color: var(--sub);
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .req-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .req-y { background: #fee2e2; color: #991b1b; }
+    .req-n { background: #f3f4f6; color: #9ca3af; }
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      background: #f3f4f6;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #374151;
+    }
+
+    /* ── CODE BLOCK ── */
+    .code-block-wrap { margin-bottom: 14px; }
+    .code-block-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e293b;
+      border-radius: 10px 10px 0 0;
+      padding: 8px 16px;
+    }
+    .code-block-label span {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+    }
+    .s2xx { background: #065f46; color: #d1fae5; }
+    .s4xx { background: #991b1b; color: #fee2e2; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 0 0 10px 10px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+    .key   { color: #93c5fd; }
+    .str   { color: #86efac; }
+    .num   { color: #fca5a5; }
+    .bool  { color: #fcd34d; }
+    .null  { color: #a78bfa; }
+    .brace { color: #e2e8f0; }
+
+    /* ── SCORE TABLE ── */
+    .score-table-wrap { overflow-x: auto; }
+
+    /* ── DIVIDER ── */
+    .ep-divider {
+      border: none;
+      border-top: 1px dashed var(--border);
+      margin: 4px 0;
+    }
+
+    /* ── MODEL TABLE SECTION ── */
+    .model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .model-grid { grid-template-columns: 1fr; } }
+    .model-card { background: #f9fafb; border-radius: 12px; padding: 18px; }
+    .model-card h4 {
+      font-size: 14px; font-weight: 700; color: var(--text);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── ERROR TABLE ── */
+    .http-badge {
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .h2 { background: #d1fae5; color: #065f46; }
+    .h4 { background: #fee2e2; color: #991b1b; }
+    .h5 { background: #f3f4f6; color: #374151; }
+
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; position: static; }
+      .model-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="site-header">
+  <h1>FinFit API 명세서</h1>
+  <p>프론트엔드(Vue 3 + Pinia) ↔ 백엔드(Django REST Framework) 연동 규격</p>
+  <div class="meta-chips">
+    <span class="chip">Base URL: http://localhost:8000/api</span>
+    <span class="chip">인증: Token Authentication</span>
+    <span class="chip">Content-Type: application/json</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <nav>
+      <h3>목차</h3>
+      <a href="#auth">1. 인증 (Auth)</a>
+      <a href="#user">2. 유저 / 프로필</a>
+      <a href="#follow">3. 팔로우</a>
+      <a href="#survey">4. 투자 성향 설문</a>
+      <a href="#stock">5. 주식</a>
+      <a href="#portfolio">6. 포트폴리오</a>
+      <a href="#community">7. 커뮤니티</a>
+      <a href="#chat">8. AI 채팅</a>
+      <a href="#errors">9. 공통 에러</a>
+      <a href="#models">10. 데이터 모델</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ── 1. AUTH ── -->
+    <div class="section-card" id="auth">
+      <div class="section-header">
+        <div class="section-icon">🔐</div>
+        <h2>1. 인증 (Auth)</h2>
+      </div>
+      <div class="section-body">
+
+        <!-- 회원가입 -->
+        <div class="endpoint">
+          <div class="endpoint-title">1-1. 회원가입</div>
+          <div class="endpoint-url">
+            <span class="method POST">POST</span>
+            <span>/auth/signup/</span>
+          </div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>email</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>이메일 (unique)</td></tr>
+            <tr><td><code>nickname</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>닉네임 (unique, max 30)</td></tr>
+            <tr><td><code>password</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>비밀번호</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Request</span></div>
+            <pre>{
+  <span class="key">"email"</span>: <span class="str">"user@example.com"</span>,
+  <span class="key">"nickname"</span>: <span class="str">"투자왕"</span>,
+  <span class="key">"password"</span>: <span class="str">"password123"</span>
+}</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">201 Created</span></div>
+            <pre>{
+  <span class="key">"user"</span>: {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"email"</span>: <span class="str">"user@example.com"</span>,
+    <span class="key">"nickname"</span>: <span class="str">"투자왕"</span>,
+    <span class="key">"bio"</span>: <span class="str">""</span>
+  },
+  <span class="key">"token"</span>: <span class="str">"9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"</span>
+}</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Error</span><span class="status-badge s4xx">400 Bad Request</span></div>
+            <pre>{ <span class="key">"email"</span>: [<span class="str">"이미 사용 중인 이메일입니다."</span>] }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <!-- 로그인 -->
+        <div class="endpoint">
+          <div class="endpoint-title">1-2. 로그인</div>
+          <div class="endpoint-url">
+            <span class="method POST">POST</span>
+            <span>/auth/login/</span>
+          </div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>email</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>이메일</td></tr>
+            <tr><td><code>password</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>비밀번호</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"user"</span>: {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"email"</span>: <span class="str">"user@example.com"</span>,
+    <span class="key">"nickname"</span>: <span class="str">"투자왕"</span>,
+    <span class="key">"bio"</span>: <span class="str">"한 줄 소개"</span>
+  },
+  <span class="key">"token"</span>: <span class="str">"9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"</span>
+}</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Error</span><span class="status-badge s4xx">400 Bad Request</span></div>
+            <pre>{ <span class="key">"non_field_errors"</span>: [<span class="str">"이메일 또는 비밀번호가 올바르지 않습니다."</span>] }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <!-- 로그아웃 -->
+        <div class="endpoint">
+          <div class="endpoint-title">1-3. 로그아웃</div>
+          <div class="endpoint-url">
+            <span class="method POST">POST</span>
+            <span>/auth/logout/</span>
+          </div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"로그아웃 되었습니다."</span> }</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 2. USER ── -->
+    <div class="section-card" id="user">
+      <div class="section-header">
+        <div class="section-icon">👤</div>
+        <h2>2. 유저 / 프로필 (User)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">2-1. 내 프로필 조회</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/users/me/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">1</span>,
+  <span class="key">"email"</span>: <span class="str">"user@example.com"</span>,
+  <span class="key">"nickname"</span>: <span class="str">"투자왕"</span>,
+  <span class="key">"bio"</span>: <span class="str">"한 줄 소개"</span>,
+  <span class="key">"investment_type"</span>: <span class="str">"위험중립형"</span>,
+  <span class="key">"risk_score"</span>: <span class="num">25</span>,
+  <span class="key">"follower_count"</span>: <span class="num">5</span>,
+  <span class="key">"following_count"</span>: <span class="num">3</span>,
+  <span class="key">"post_count"</span>: <span class="num">2</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">2-2. 내 프로필 수정 (한 줄 소개)</div>
+          <div class="endpoint-url"><span class="method PATCH">PATCH</span><span>/users/me/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>bio</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>한 줄 소개 (최대 100자)</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">1</span>,
+  <span class="key">"nickname"</span>: <span class="str">"투자왕"</span>,
+  <span class="key">"bio"</span>: <span class="str">"새로운 한 줄 소개"</span>,
+  <span class="key">"investment_type"</span>: <span class="str">"위험중립형"</span>,
+  <span class="key">"risk_score"</span>: <span class="num">25</span>,
+  <span class="key">"follower_count"</span>: <span class="num">5</span>,
+  <span class="key">"following_count"</span>: <span class="num">3</span>,
+  <span class="key">"post_count"</span>: <span class="num">2</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">2-3. 특정 유저 프로필 조회</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/users/{user_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">2</span>,
+  <span class="key">"nickname"</span>: <span class="str">"파라파라"</span>,
+  <span class="key">"bio"</span>: <span class="str">"장기 투자를 추구합니다."</span>,
+  <span class="key">"investment_type"</span>: <span class="str">"안전추구형"</span>,
+  <span class="key">"follower_count"</span>: <span class="num">8</span>,
+  <span class="key">"following_count"</span>: <span class="num">3</span>,
+  <span class="key">"post_count"</span>: <span class="num">1</span>,
+  <span class="key">"is_following"</span>: <span class="bool">false</span>
+}</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 3. FOLLOW ── -->
+    <div class="section-card" id="follow">
+      <div class="section-header">
+        <div class="section-icon">🤝</div>
+        <h2>3. 팔로우 (Follow)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">3-1. 내 팔로워 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/users/me/followers/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  {
+    <span class="key">"id"</span>: <span class="num">2</span>,
+    <span class="key">"nickname"</span>: <span class="str">"파라파라"</span>,
+    <span class="key">"bio"</span>: <span class="str">"장기 투자를 추구합니다."</span>,
+    <span class="key">"investment_type"</span>: <span class="str">"안전추구형"</span>,
+    <span class="key">"is_following"</span>: <span class="bool">false</span>
+  }
+]</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">3-2. 내 팔로잉 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/users/me/following/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  {
+    <span class="key">"id"</span>: <span class="num">3</span>,
+    <span class="key">"nickname"</span>: <span class="str">"서현짱"</span>,
+    <span class="key">"bio"</span>: <span class="str">"균형 잡힌 투자를 지향합니다."</span>,
+    <span class="key">"investment_type"</span>: <span class="str">"위험중립형"</span>,
+    <span class="key">"is_following"</span>: <span class="bool">true</span>
+  }
+]</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">3-3. 팔로우</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/users/{user_id}/follow/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"팔로우했습니다."</span>, <span class="key">"is_following"</span>: <span class="bool">true</span> }</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Error</span><span class="status-badge s4xx">400 Bad Request</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"이미 팔로우 중입니다."</span> }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">3-4. 언팔로우</div>
+          <div class="endpoint-url"><span class="method DELETE">DELETE</span><span>/users/{user_id}/follow/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"언팔로우했습니다."</span>, <span class="key">"is_following"</span>: <span class="bool">false</span> }</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 4. SURVEY ── -->
+    <div class="section-card" id="survey">
+      <div class="section-header">
+        <div class="section-icon">📋</div>
+        <h2>4. 투자 성향 설문 (Survey)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">4-1. 설문 문항 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/survey/questions/</span></div>
+          <div class="desc">총 5문항 고정. 각 문항 4지선다 (score: 1 / 3 / 6 / 8)</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"question"</span>: <span class="str">"최근에 투자 경험이 있으신가요?"</span>,
+    <span class="key">"choices"</span>: [
+      { <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"text"</span>: <span class="str">"전혀 없음"</span>,          <span class="key">"score"</span>: <span class="num">1</span> },
+      { <span class="key">"id"</span>: <span class="num">2</span>, <span class="key">"text"</span>: <span class="str">"있음 (6개월 미만)"</span>,   <span class="key">"score"</span>: <span class="num">3</span> },
+      { <span class="key">"id"</span>: <span class="num">3</span>, <span class="key">"text"</span>: <span class="str">"있음 (6개월~2년)"</span>,   <span class="key">"score"</span>: <span class="num">6</span> },
+      { <span class="key">"id"</span>: <span class="num">4</span>, <span class="key">"text"</span>: <span class="str">"있음 (2년 이상)"</span>,     <span class="key">"score"</span>: <span class="num">8</span> }
+    ]
+  }
+]</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">4-2. 설문 결과 제출</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/survey/submit/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>answers</code></td><td>array</td><td><span class="req-badge req-y">필수</span></td><td>5개 문항 선택 결과</td></tr>
+            <tr><td><code>answers[].question_id</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>문항 ID</td></tr>
+            <tr><td><code>answers[].choice_id</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>선택지 ID</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Request</span></div>
+            <pre>{
+  <span class="key">"answers"</span>: [
+    { <span class="key">"question_id"</span>: <span class="num">1</span>, <span class="key">"choice_id"</span>: <span class="num">3</span> },
+    { <span class="key">"question_id"</span>: <span class="num">2</span>, <span class="key">"choice_id"</span>: <span class="num">7</span> },
+    { <span class="key">"question_id"</span>: <span class="num">3</span>, <span class="key">"choice_id"</span>: <span class="num">6</span> },
+    { <span class="key">"question_id"</span>: <span class="num">4</span>, <span class="key">"choice_id"</span>: <span class="num">8</span> },
+    { <span class="key">"question_id"</span>: <span class="num">5</span>, <span class="key">"choice_id"</span>: <span class="num">2</span> }
+  ]
+}</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"risk_score"</span>: <span class="num">29</span>,
+  <span class="key">"result_type"</span>: <span class="str">"적극투자형"</span>,
+  <span class="key">"result_description"</span>: <span class="str">"높은 수익을 위해 어느 정도의 위험을 감수합니다."</span>
+}</pre>
+          </div>
+          <div class="param-label" style="margin-top:16px">점수 기준</div>
+          <div class="score-table-wrap">
+            <table>
+              <tr><th>점수 범위</th><th>유형</th><th>설명</th></tr>
+              <tr><td>5 ~ 12</td><td><code>안정형</code></td><td>안정성을 최우선으로 여기며 원금 보전에 집중합니다.</td></tr>
+              <tr><td>13 ~ 20</td><td><code>안정추구형</code></td><td>안정성을 추구하며 소폭의 수익을 선호합니다.</td></tr>
+              <tr><td>21 ~ 28</td><td><code>위험중립형</code></td><td>위험과 수익 사이의 균형을 추구합니다.</td></tr>
+              <tr><td>29 ~ 34</td><td><code>적극투자형</code></td><td>높은 수익을 위해 어느 정도의 위험을 감수합니다.</td></tr>
+              <tr><td>35 ~ 40</td><td><code>공격투자형</code></td><td>고위험 고수익을 추구하며 공격적으로 투자합니다.</td></tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 5. STOCK ── -->
+    <div class="section-card" id="stock">
+      <div class="section-header">
+        <div class="section-icon">📈</div>
+        <h2>5. 주식 (Stock)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">5-1. 추천 종목 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/stocks/recommended/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="desc">로그인 유저의 <code>investment_type</code> 에 맞는 종목 반환</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  { <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"삼성전자"</span>,  <span class="key">"code"</span>: <span class="str">"005930"</span>, <span class="key">"category"</span>: <span class="str">"반도체"</span>, <span class="key">"price"</span>: <span class="num">313000</span>, <span class="key">"change"</span>: <span class="num">4.16</span>  },
+  { <span class="key">"id"</span>: <span class="num">2</span>, <span class="key">"name"</span>: <span class="str">"SK하이닉스"</span>, <span class="key">"code"</span>: <span class="str">"000660"</span>, <span class="key">"category"</span>: <span class="str">"반도체"</span>, <span class="key">"price"</span>: <span class="num">187500</span>, <span class="key">"change"</span>: <span class="num">2.83</span>  },
+  { <span class="key">"id"</span>: <span class="num">3</span>, <span class="key">"name"</span>: <span class="str">"KODEX 200"</span>,  <span class="key">"code"</span>: <span class="str">"069500"</span>, <span class="key">"category"</span>: <span class="str">"ETF"</span>,    <span class="key">"price"</span>: <span class="num">38650</span>,  <span class="key">"change"</span>: <span class="num">-0.41</span> }
+]</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">5-2. 종목 검색</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/stocks/search/?q={검색어}</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Query Params</div>
+          <table>
+            <tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>q</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>종목명 또는 종목코드로 검색</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  { <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"삼성전자"</span>, <span class="key">"code"</span>: <span class="str">"005930"</span>, <span class="key">"category"</span>: <span class="str">"반도체"</span>, <span class="key">"price"</span>: <span class="num">313000</span>, <span class="key">"change"</span>: <span class="num">4.16</span> }
+]</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 6. PORTFOLIO ── -->
+    <div class="section-card" id="portfolio">
+      <div class="section-header">
+        <div class="section-icon">💼</div>
+        <h2>6. 포트폴리오 (Portfolio)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">6-1. 포트폴리오 조회</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/portfolio/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"holdings"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="num">1</span>,
+      <span class="key">"stock_id"</span>: <span class="num">1</span>,
+      <span class="key">"name"</span>: <span class="str">"삼성전자"</span>,
+      <span class="key">"code"</span>: <span class="str">"005930"</span>,
+      <span class="key">"category"</span>: <span class="str">"반도체"</span>,
+      <span class="key">"qty"</span>: <span class="num">3</span>,
+      <span class="key">"buy_price"</span>: <span class="num">80000</span>,
+      <span class="key">"current_price"</span>: <span class="num">313000</span>
+    }
+  ],
+  <span class="key">"total_invested"</span>: <span class="num">240000</span>,
+  <span class="key">"total_value"</span>: <span class="num">939000</span>,
+  <span class="key">"return_rate"</span>: <span class="num">291.25</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">6-2. 종목 추가 / 수량 합산</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/portfolio/holdings/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="desc">기존 보유 종목이면 가중평균 단가로 합산, 신규이면 추가합니다.</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>stock_id</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>주식 ID</td></tr>
+            <tr><td><code>qty</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>수량 (1 이상)</td></tr>
+            <tr><td><code>buy_price</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>매수 단가 (원)</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response (신규)</span><span class="status-badge s2xx">201 Created</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"stock_id"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"삼성전자"</span>,
+  <span class="key">"qty"</span>: <span class="num">5</span>, <span class="key">"buy_price"</span>: <span class="num">295000</span>, <span class="key">"current_price"</span>: <span class="num">313000</span>
+}</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response (기존 합산)</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"stock_id"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"삼성전자"</span>,
+  <span class="key">"qty"</span>: <span class="num">8</span>, <span class="key">"buy_price"</span>: <span class="num">214375</span>, <span class="key">"current_price"</span>: <span class="num">313000</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">6-3. 수량 변경</div>
+          <div class="endpoint-url"><span class="method PATCH">PATCH</span><span>/portfolio/holdings/{holding_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>qty</code></td><td>integer</td><td><span class="req-badge req-y">필수</span></td><td>변경 후 수량 (1 ~ 9999)</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{ <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"qty"</span>: <span class="num">10</span>, <span class="key">"buy_price"</span>: <span class="num">214375</span>, <span class="key">"current_price"</span>: <span class="num">313000</span> }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">6-4. 종목 제거</div>
+          <div class="endpoint-url"><span class="method DELETE">DELETE</span><span>/portfolio/holdings/{holding_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">204 No Content</span></div>
+            <pre>(본문 없음)</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 7. COMMUNITY ── -->
+    <div class="section-card" id="community">
+      <div class="section-header">
+        <div class="section-icon">💬</div>
+        <h2>7. 커뮤니티 (Community)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-1. 게시글 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/community/posts/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Query Params</div>
+          <table>
+            <tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>risk_type</code></td><td>string</td><td><span class="req-badge req-n">선택</span></td><td>투자 성향 필터 (예: 안정형, 위험중립형)</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>[
+  {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"title"</span>: <span class="str">"대형주 중심 포트폴리오"</span>,
+    <span class="key">"content"</span>: <span class="str">"저는 이번에 31만에 삼전 추매했어요 ~"</span>,
+    <span class="key">"author"</span>: <span class="str">"파라파라"</span>,
+    <span class="key">"author_id"</span>: <span class="num">2</span>,
+    <span class="key">"risk_type"</span>: <span class="str">"안정추구형"</span>,
+    <span class="key">"likes"</span>: <span class="num">10</span>,
+    <span class="key">"liked"</span>: <span class="bool">false</span>,
+    <span class="key">"comment_count"</span>: <span class="num">2</span>,
+    <span class="key">"created_at"</span>: <span class="str">"2025-01-15"</span>
+  }
+]</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-2. 게시글 상세</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/community/posts/{post_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">1</span>,
+  <span class="key">"title"</span>: <span class="str">"대형주 중심 포트폴리오"</span>,
+  <span class="key">"content"</span>: <span class="str">"저는 이번에 31만에 삼전 추매했어요 ~"</span>,
+  <span class="key">"author"</span>: <span class="str">"파라파라"</span>,
+  <span class="key">"author_id"</span>: <span class="num">2</span>,
+  <span class="key">"risk_type"</span>: <span class="str">"안정추구형"</span>,
+  <span class="key">"likes"</span>: <span class="num">10</span>,
+  <span class="key">"liked"</span>: <span class="bool">false</span>,
+  <span class="key">"comments"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="num">1</span>,
+      <span class="key">"author"</span>: <span class="str">"서현짱"</span>,
+      <span class="key">"author_id"</span>: <span class="num">3</span>,
+      <span class="key">"text"</span>: <span class="str">"네, 들어가십쇼."</span>,
+      <span class="key">"created_at"</span>: <span class="str">"2025-01-15T10:30:00Z"</span>
+    }
+  ],
+  <span class="key">"created_at"</span>: <span class="str">"2025-01-15"</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-3. 게시글 작성</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/community/posts/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>title</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>제목 (max 100)</td></tr>
+            <tr><td><code>content</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>본문</td></tr>
+            <tr><td><code>risk_type</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>투자 성향 태그</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">201 Created</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">4</span>,
+  <span class="key">"title"</span>: <span class="str">"오늘의 포트폴리오 공유"</span>,
+  <span class="key">"author"</span>: <span class="str">"투자왕"</span>,
+  <span class="key">"author_id"</span>: <span class="num">1</span>,
+  <span class="key">"risk_type"</span>: <span class="str">"위험중립형"</span>,
+  <span class="key">"likes"</span>: <span class="num">0</span>,
+  <span class="key">"liked"</span>: <span class="bool">false</span>,
+  <span class="key">"comments"</span>: [],
+  <span class="key">"created_at"</span>: <span class="str">"2026-06-21"</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-4. 게시글 삭제</div>
+          <div class="endpoint-url"><span class="method DELETE">DELETE</span><span>/community/posts/{post_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="desc">본인 게시글만 삭제 가능</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">204 No Content</span></div>
+            <pre>(본문 없음)</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Error</span><span class="status-badge s4xx">403 Forbidden</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"삭제 권한이 없습니다."</span> }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-5. 좋아요 토글</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/community/posts/{post_id}/like/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{ <span class="key">"liked"</span>: <span class="bool">true</span>, <span class="key">"likes"</span>: <span class="num">11</span> }</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-6. 내가 쓴 게시글 목록</div>
+          <div class="endpoint-url"><span class="method GET">GET</span><span>/community/posts/my/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="desc">7-1 목록 응답과 동일한 구조</div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-7. 댓글 작성</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/community/posts/{post_id}/comments/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>text</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>댓글 내용</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">201 Created</span></div>
+            <pre>{
+  <span class="key">"id"</span>: <span class="num">10</span>,
+  <span class="key">"author"</span>: <span class="str">"투자왕"</span>,
+  <span class="key">"author_id"</span>: <span class="num">1</span>,
+  <span class="key">"text"</span>: <span class="str">"좋은 정보 감사합니다!"</span>,
+  <span class="key">"created_at"</span>: <span class="str">"2026-06-21T09:00:00Z"</span>
+}</pre>
+          </div>
+        </div>
+
+        <hr class="ep-divider" />
+
+        <div class="endpoint">
+          <div class="endpoint-title">7-8. 댓글 삭제</div>
+          <div class="endpoint-url"><span class="method DELETE">DELETE</span><span>/community/posts/{post_id}/comments/{comment_id}/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="desc">본인 댓글만 삭제 가능</div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">204 No Content</span></div>
+            <pre>(본문 없음)</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Error</span><span class="status-badge s4xx">403 Forbidden</span></div>
+            <pre>{ <span class="key">"detail"</span>: <span class="str">"삭제 권한이 없습니다."</span> }</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 8. CHAT ── -->
+    <div class="section-card" id="chat">
+      <div class="section-header">
+        <div class="section-icon">🤖</div>
+        <h2>8. AI 채팅 (Chat)</h2>
+      </div>
+      <div class="section-body">
+
+        <div class="endpoint">
+          <div class="endpoint-title">8-1. 메시지 전송</div>
+          <div class="endpoint-url"><span class="method POST">POST</span><span>/chat/message/</span></div>
+          <div class="auth-required">🔑 Authorization: Token &lt;token&gt;</div>
+          <div class="param-label">Request Body</div>
+          <table>
+            <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+            <tr><td><code>message</code></td><td>string</td><td><span class="req-badge req-y">필수</span></td><td>사용자 질문 텍스트</td></tr>
+          </table>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Request</span></div>
+            <pre>{ <span class="key">"message"</span>: <span class="str">"삼성전자를 추천한 이유를 알려줘."</span> }</pre>
+          </div>
+          <div class="code-block-wrap">
+            <div class="code-block-label"><span>Response</span><span class="status-badge s2xx">200 OK</span></div>
+            <pre>{
+  <span class="key">"reply"</span>: <span class="str">"삼성전자는 반도체 및 전자제품 글로벌 1위 기업으로, 안정적인 배당과 반도체 슈퍼사이클 수혜가 기대됩니다..."</span>
+}</pre>
+          </div>
+          <div class="desc" style="margin-top:8px">스트리밍 응답이 필요한 경우 <code>GET /chat/message/stream/</code> 별도 협의</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 9. ERRORS ── -->
+    <div class="section-card" id="errors">
+      <div class="section-header">
+        <div class="section-icon">⚠️</div>
+        <h2>9. 공통 에러 응답</h2>
+      </div>
+      <div class="section-body">
+        <table>
+          <tr><th>HTTP 상태</th><th>상황</th></tr>
+          <tr><td><span class="http-badge h4">400</span></td><td>잘못된 요청 / 유효성 검사 실패</td></tr>
+          <tr><td><span class="http-badge h4">401</span></td><td>인증 토큰 없음 또는 만료</td></tr>
+          <tr><td><span class="http-badge h4">403</span></td><td>권한 없음 (타인의 게시글·댓글 삭제 등)</td></tr>
+          <tr><td><span class="http-badge h4">404</span></td><td>리소스 없음</td></tr>
+          <tr><td><span class="http-badge h5">500</span></td><td>서버 내부 오류</td></tr>
+        </table>
+        <div class="code-block-wrap" style="margin-top:16px">
+          <div class="code-block-label"><span>에러 응답 형식</span></div>
+          <pre>{ <span class="key">"detail"</span>: <span class="str">"에러 메시지"</span> }
+<span style="color:#64748b">// 필드 유효성 오류의 경우</span>
+{ <span class="key">"field_name"</span>: [<span class="str">"오류 설명"</span>] }</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 10. MODELS ── -->
+    <div class="section-card" id="models">
+      <div class="section-header">
+        <div class="section-icon">🗂️</div>
+        <h2>10. 데이터 모델 요약</h2>
+      </div>
+      <div class="section-body">
+        <div class="model-grid">
+
+          <div class="model-card">
+            <h4>User</h4>
+            <table>
+              <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+              <tr><td><code>id</code></td><td>integer</td><td>PK</td></tr>
+              <tr><td><code>email</code></td><td>string</td><td>unique</td></tr>
+              <tr><td><code>nickname</code></td><td>string</td><td>unique, max 30</td></tr>
+              <tr><td><code>bio</code></td><td>string</td><td>max 100</td></tr>
+              <tr><td><code>investment_type</code></td><td>string</td><td>설문 결과</td></tr>
+              <tr><td><code>risk_score</code></td><td>integer</td><td>5 ~ 40</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card">
+            <h4>Stock</h4>
+            <table>
+              <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+              <tr><td><code>id</code></td><td>integer</td><td>PK</td></tr>
+              <tr><td><code>name</code></td><td>string</td><td>종목명</td></tr>
+              <tr><td><code>code</code></td><td>string</td><td>종목코드</td></tr>
+              <tr><td><code>category</code></td><td>string</td><td>반도체/ETF/IT…</td></tr>
+              <tr><td><code>price</code></td><td>integer</td><td>현재가 (원)</td></tr>
+              <tr><td><code>change</code></td><td>float</td><td>등락률 (%)</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card">
+            <h4>PortfolioHolding</h4>
+            <table>
+              <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+              <tr><td><code>id</code></td><td>integer</td><td>PK</td></tr>
+              <tr><td><code>user</code></td><td>FK User</td><td>소유 유저</td></tr>
+              <tr><td><code>stock</code></td><td>FK Stock</td><td>종목</td></tr>
+              <tr><td><code>qty</code></td><td>integer</td><td>수량 (1~9999)</td></tr>
+              <tr><td><code>buy_price</code></td><td>integer</td><td>평균 매수단가</td></tr>
+              <tr><td><code>current_price</code></td><td>integer</td><td>현재가 (실시간)</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card">
+            <h4>Post</h4>
+            <table>
+              <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+              <tr><td><code>id</code></td><td>integer</td><td>PK</td></tr>
+              <tr><td><code>author</code></td><td>FK User</td><td>작성자</td></tr>
+              <tr><td><code>title</code></td><td>string</td><td>max 100</td></tr>
+              <tr><td><code>content</code></td><td>text</td><td>본문</td></tr>
+              <tr><td><code>risk_type</code></td><td>string</td><td>투자 성향 태그</td></tr>
+              <tr><td><code>likes</code></td><td>integer</td><td>좋아요 수</td></tr>
+              <tr><td><code>created_at</code></td><td>date</td><td>작성일</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card">
+            <h4>Comment</h4>
+            <table>
+              <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+              <tr><td><code>id</code></td><td>integer</td><td>PK</td></tr>
+              <tr><td><code>post</code></td><td>FK Post</td><td>게시글</td></tr>
+              <tr><td><code>author</code></td><td>FK User</td><td>작성자</td></tr>
+              <tr><td><code>text</code></td><td>text</td><td>댓글 내용</td></tr>
+              <tr><td><code>created_at</code></td><td>datetime</td><td>작성 일시</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card">
+            <h4>Like &amp; Follow</h4>
+            <table>
+              <tr><th>모델</th><th>필드</th><th>제약</th></tr>
+              <tr><td rowspan="2">Like</td><td><code>user</code> FK</td><td rowspan="2">(user, post) unique</td></tr>
+              <tr><td><code>post</code> FK</td></tr>
+              <tr><td rowspan="2">Follow</td><td><code>follower</code> FK</td><td rowspan="2">(follower, following) unique</td></tr>
+              <tr><td><code>following</code> FK</td></tr>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
