@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { authApi } from '@/api/authApi'
+import { useChatStore } from '@/stores/chatStore'
 
 const TOKEN_KEY = 'finfit_token'
 const USER_KEY  = 'finfit_user'
@@ -22,14 +23,17 @@ export const useAuthStore = defineStore('auth', {
       this.token = token
       localStorage.setItem(TOKEN_KEY, token)
       localStorage.setItem(USER_KEY, JSON.stringify(user))
+      // 로그인한 유저의 채팅 기록 로드
+      useChatStore().initForUser(user.id)
     },
 
     _clear() {
+      // 로그아웃 시 채팅 초기화 (기록은 localStorage에 유지)
+      useChatStore().reset()
       this.user  = null
       this.token = null
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
-      localStorage.removeItem('finfit_chat')
     },
 
     async signup(credentials) {

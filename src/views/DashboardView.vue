@@ -42,9 +42,12 @@ const typeDesc    = computed(() => TYPE_DESC[resultType.value] ?? '')
 const typeTooltip = computed(() => TYPE_TOOLTIP[resultType.value] ?? '')
 
 // ── 추천 종목 ──
-const recommendedStocks = ref([])
-async function loadRecommended() {
-  try { recommendedStocks.value = await stockApi.getRecommended() } catch (_) {}
+const recommendedStocks  = ref([])
+const isRefreshing       = ref(false)
+async function loadRecommended(shuffle = false) {
+  if (shuffle) isRefreshing.value = true
+  try { recommendedStocks.value = await stockApi.getRecommended(shuffle) } catch (_) {}
+  finally { isRefreshing.value = false }
 }
 
 // ── 검색 ──
@@ -127,7 +130,16 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <p class="rec-count">추천 종목 {{ recommendedStocks.length }}개</p>
+        <div class="rec-header">
+          <p class="rec-count">추천 종목 {{ recommendedStocks.length }}개</p>
+          <button
+            class="btn-rec-refresh"
+            :class="{ spinning: isRefreshing }"
+            :disabled="isRefreshing"
+            title="다른 종목 추천받기"
+            @click="loadRecommended(true)"
+          >↻</button>
+        </div>
 
         <div v-for="stock in recommendedStocks" :key="stock.id" class="stock-card">
           <div class="stock-info">
@@ -403,7 +415,19 @@ onUnmounted(() => {
 .profile-score-box { text-align: center; }
 .score-label { font-size: 10px; opacity: 0.8; }
 .score-num { font-weight: 700; font-size: 24px; }
-.rec-count { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+.rec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.rec-count { font-size: 12px; color: #6b7280; }
+.btn-rec-refresh {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid #e5e7eb; background: #fff;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #6b7280; transition: border-color 0.15s, color 0.15s;
+}
+.btn-rec-refresh:hover:not(:disabled) { border-color: #1b78fd; color: #1b78fd; }
+.btn-rec-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-rec-refresh.spinning { animation: spin-icon 0.6s linear infinite; }
+@keyframes spin-icon { to { transform: rotate(360deg); } }
 
 .stock-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; margin-bottom: 8px; }
 .stock-info { margin-bottom: 10px; }
