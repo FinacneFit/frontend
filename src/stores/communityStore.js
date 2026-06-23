@@ -75,6 +75,12 @@ export const useCommunityStore = defineStore('community', {
       this.posts.unshift(mapPost(data))
     },
 
+    async updatePost(postId, { title, content }) {
+      const data = await communityApi.updatePost(postId, { title, content })
+      const idx  = this.posts.findIndex((p) => p.id === postId)
+      if (idx >= 0) this.posts[idx] = mapPost(data)
+    },
+
     async deletePost(postId) {
       await communityApi.deletePost(postId)
       this.posts = this.posts.filter((p) => p.id !== postId)
@@ -102,6 +108,14 @@ export const useCommunityStore = defineStore('community', {
       if (!post) return
       post.comments.push(mapComment(data))
       post.commentCount = post.comments.length
+    },
+
+    async updateComment(postId, commentId, text) {
+      const data    = await communityApi.updateComment(postId, commentId, text)
+      const post    = this.posts.find((p) => p.id === postId)
+      if (!post) return
+      const comment = post.comments.find((c) => c.id === commentId)
+      if (comment) comment.text = data.text
     },
 
     async deleteComment(postId, commentId) {

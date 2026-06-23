@@ -12,6 +12,7 @@ import CommunityListView from '@/views/community/CommunityListView.vue'
 import CommunityDetailView from '@/views/community/CommunityDetailView.vue'
 import CommunityCreateView from '@/views/community/CommunityCreateView.vue'
 import CommunityMyListView from '@/views/community/CommunityMyListView.vue'
+import CommunityEditView from '@/views/community/CommunityEditView.vue'
 import DepositListView from '@/views/DepositListView.vue'
 import SpotAssetChartView from '@/views/SpotAssetChartView.vue'
 
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: '/community/create', component: CommunityCreateView },
     { path: '/community/my', component: CommunityMyListView },
     { path: '/community/:postId', component: CommunityDetailView },
+    { path: '/community/:postId/edit', component: CommunityEditView },
     { path: '/deposits', component: DepositListView },
     { path: '/spot-assets', component: SpotAssetChartView },
     {path: '/stock-videos',name: 'stock-videos', component: () => import('@/views/StockVideoSearchView.vue'),},

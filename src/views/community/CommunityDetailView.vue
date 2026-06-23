@@ -15,11 +15,30 @@ const authStore      = useAuthStore()
 const post = computed(() => communityStore.getPost(route.params.postId))
 
 onMounted(() => communityStore.loadPost(Number(route.params.postId)))
-const commentText = ref('')
 
-const myId    = computed(() => authStore.user?.id ?? 99)
-const nickname = computed(() => authStore.user?.nickname ?? '이서현')
-const initial  = computed(() => nickname.value.charAt(0))
+const commentText = ref('')
+const myId        = computed(() => authStore.user?.id ?? null)
+const nickname    = computed(() => authStore.user?.nickname ?? '')
+const initial     = computed(() => nickname.value.charAt(0))
+
+// 댓글 인라인 수정
+const editingCommentId   = ref(null)
+const editingCommentText = ref('')
+
+function startEditComment(c) {
+  editingCommentId.value   = c.id
+  editingCommentText.value = c.text
+}
+function cancelEditComment() {
+  editingCommentId.value   = null
+  editingCommentText.value = ''
+}
+async function submitEditComment(commentId) {
+  const text = editingCommentText.value.trim()
+  if (!text || !post.value) return
+  await communityStore.updateComment(post.value.id, commentId, text)
+  cancelEditComment()
+}
 
 function toggleLike() {
   if (!post.value) return
@@ -35,7 +54,15 @@ function addComment() {
 
 function deleteComment(commentId) {
   if (!post.value) return
+  if (!confirm('댓글을 삭제하시겠습니까?')) return
   communityStore.deleteComment(post.value.id, commentId)
+}
+
+async function deletePost() {
+  if (!post.value) return
+  if (!confirm('게시글을 삭제하시겠습니까?')) return
+  await communityStore.deletePost(post.value.id)
+  router.push('/community')
 }
 
 // 프로필 모달
@@ -51,7 +78,6 @@ function closeProfile() { selectedUserId.value = null }
 <template>
   <CommunityLayout>
     <div class="detail-shell">
-      <!-- 스크롤 영역 -->
       <div class="detail-scroll">
         <div v-if="post" class="detail-wrap">
           <button class="back-btn" @click="router.push('/community')">‹ 목록으로</button>
@@ -64,6 +90,12 @@ function closeProfile() { selectedUserId.value = null }
             </button>
             <span class="risk-badge">{{ post.riskType }}</span>
             <span class="post-date">{{ post.createdAt }}</span>
+
+            <!-- 작성자 전용 수정/삭제 -->
+            <div v-if="post.authorId === myId" class="post-actions">
+              <button class="btn-edit" @click="router.push(`/community/${post.id}/edit`)">수정</button>
+              <button class="btn-delete-post" @click="deletePost">삭제</button>
+            </div>
           </div>
 
           <div class="post-body">{{ post.content }}</div>
@@ -88,13 +120,28 @@ function closeProfile() { selectedUserId.value = null }
                   <button class="comment-author-btn" @click="openProfile(c.authorId)">{{ c.author }}</button>
                   <span v-if="c.authorId === post.authorId" class="author-badge">작성자</span>
                 </div>
-                <p class="comment-text">{{ c.text }}</p>
+
+                <!-- 인라인 수정 모드 -->
+                <template v-if="editingCommentId === c.id">
+                  <textarea
+                    v-model="editingCommentText"
+                    class="comment-edit-input"
+                    rows="2"
+                    @keydown.enter.ctrl="submitEditComment(c.id)"
+                  />
+                  <div class="comment-edit-btns">
+                    <button class="btn-save-comment" @click="submitEditComment(c.id)">저장</button>
+                    <button class="btn-cancel-comment" @click="cancelEditComment">취소</button>
+                  </div>
+                </template>
+                <p v-else class="comment-text">{{ c.text }}</p>
               </div>
-              <button
-                v-if="c.authorId === myId"
-                class="del-comment"
-                @click="deleteComment(c.id)"
-              >삭제</button>
+
+              <!-- 내 댓글 수정/삭제 -->
+              <div v-if="c.authorId === myId && editingCommentId !== c.id" class="comment-actions">
+                <button class="act-btn" @click="startEditComment(c)">수정</button>
+                <button class="act-btn del" @click="deleteComment(c.id)">삭제</button>
+              </div>
             </div>
             <p v-if="!post.comments.length" class="no-comment">첫 댓글을 남겨보세요.</p>
           </div>
@@ -102,14 +149,12 @@ function closeProfile() { selectedUserId.value = null }
         <div v-else class="not-found">게시글을 찾을 수 없습니다.</div>
       </div>
 
-      <!-- UserProfileModal -->
       <UserProfileModal
         v-if="selectedUserId !== null"
         :userId="selectedUserId"
         @close="closeProfile"
       />
 
-      <!-- 댓글 입력 고정 하단 -->
       <div v-if="post" class="comment-input-row">
         <input
           v-model="commentText"
@@ -124,11 +169,7 @@ function closeProfile() { selectedUserId.value = null }
 </template>
 
 <style scoped>
-.detail-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
+.detail-shell { display: flex; flex-direction: column; height: 100%; }
 .detail-scroll { flex: 1; overflow-y: auto; }
 .detail-wrap { padding: 24px; }
 
@@ -140,15 +181,26 @@ function closeProfile() { selectedUserId.value = null }
 .back-btn:hover { color: #1b78fd; }
 .detail-title { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 24px; margin-bottom: 14px; }
 
-.author-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.author-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .author-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 0; }
-.avatar-sm {
-  width: 28px; height: 28px; border-radius: 50%;
-  object-fit: cover; flex-shrink: 0; display: block;
-}
+.avatar-sm { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; display: block; }
 .author-name { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 600; }
 .risk-badge { font-size: 12px; color: #1b78fd; background: rgba(27,120,253,0.1); border-radius: 6px; padding: 2px 8px; }
 .post-date { font-size: 12px; color: #9ca3af; margin-left: auto; }
+
+.post-actions { display: flex; gap: 6px; }
+.btn-edit {
+  background: none; border: 1px solid #d1d5db; border-radius: 8px;
+  padding: 4px 12px; font-size: 12px; color: #374151;
+  font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
+}
+.btn-edit:hover { border-color: #1b78fd; color: #1b78fd; }
+.btn-delete-post {
+  background: none; border: 1px solid #fca5a5; border-radius: 8px;
+  padding: 4px 12px; font-size: 12px; color: #ef4444;
+  font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
+}
+.btn-delete-post:hover { background: #ef4444; color: #fff; }
 
 .post-body {
   border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;
@@ -166,8 +218,8 @@ function closeProfile() { selectedUserId.value = null }
 .comments-heading { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 12px; }
 .comment-list { display: flex; flex-direction: column; gap: 12px; }
 .comment-item { display: flex; align-items: flex-start; gap: 10px; }
-.comment-body { flex: 1; }
-.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; }
+.comment-body { flex: 1; min-width: 0; }
+.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; flex-shrink: 0; }
 .avatar-btn:hover { opacity: 0.8; }
 .comment-author-row { display: flex; align-items: center; gap: 6px; }
 .comment-author-btn {
@@ -181,8 +233,34 @@ function closeProfile() { selectedUserId.value = null }
   padding: 1px 6px; flex-shrink: 0;
 }
 .comment-text { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; margin-top: 3px; }
-.del-comment { background: none; border: none; font-size: 12px; color: #9ca3af; cursor: pointer; flex-shrink: 0; }
-.del-comment:hover { color: #ef4444; }
+
+.comment-edit-input {
+  width: 100%; box-sizing: border-box;
+  border: 1.5px solid #1b78fd; border-radius: 8px;
+  padding: 8px 10px; font-family: 'Noto Sans KR', sans-serif; font-size: 14px;
+  resize: none; outline: none; margin-top: 4px;
+}
+.comment-edit-btns { display: flex; gap: 6px; margin-top: 6px; }
+.btn-save-comment {
+  height: 30px; padding: 0 14px; background: #1b78fd; color: #fff; border: none;
+  border-radius: 8px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; font-weight: 700; cursor: pointer;
+}
+.btn-save-comment:hover { opacity: 0.88; }
+.btn-cancel-comment {
+  height: 30px; padding: 0 14px; background: none; border: 1px solid #d1d5db;
+  border-radius: 8px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; color: #6b7280; cursor: pointer;
+}
+.btn-cancel-comment:hover { border-color: #9ca3af; color: #374151; }
+
+.comment-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.act-btn {
+  background: none; border: none; font-size: 12px; color: #9ca3af;
+  cursor: pointer; padding: 2px 6px;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.act-btn:hover { color: #374151; }
+.act-btn.del:hover { color: #ef4444; }
+
 .no-comment { font-size: 13px; color: #9ca3af; text-align: center; padding: 20px; }
 .not-found { padding: 40px; text-align: center; color: #9ca3af; }
 

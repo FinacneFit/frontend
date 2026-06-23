@@ -39,7 +39,10 @@ function deletePost(id) {
               <span class="mc-date">{{ post.createdAt }}</span>
             </div>
           </div>
-          <button class="btn-del" @click="deletePost(post.id)">삭제</button>
+          <div class="card-actions">
+            <button class="btn-edit" @click="router.push(`/community/${post.id}/edit`)">수정</button>
+            <button class="btn-del" @click="deletePost(post.id)">삭제</button>
+          </div>
         </div>
       </div>
 
@@ -71,9 +74,15 @@ function deletePost(id) {
 .mc-meta { display: flex; gap: 12px; font-size: 12px; color: #9ca3af; }
 .mc-date { margin-left: auto; }
 
+.card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.btn-edit {
+  background: none; border: 1px solid #d1d5db; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; color: #374151; cursor: pointer;
+}
+.btn-edit:hover { border-color: #1b78fd; color: #1b78fd; }
 .btn-del {
   background: none; border: 1px solid #e5e7eb; border-radius: 8px;
-  padding: 6px 12px; font-size: 12px; color: #9ca3af; cursor: pointer; flex-shrink: 0;
+  padding: 6px 12px; font-size: 12px; color: #9ca3af; cursor: pointer;
 }
 .btn-del:hover { border-color: #ef4444; color: #ef4444; }
 .empty { text-align: center; color: #9ca3af; font-size: 14px; margin-top: 40px; }
