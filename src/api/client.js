@@ -1,5 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
+let unauthorizedHandler = null
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler
+}
+
 async function request(method, path, body = null, auth = true) {
   const isFormData = body instanceof FormData
   const headers = isFormData ? {} : { 'Content-Type': 'application/json' }
@@ -17,6 +23,8 @@ async function request(method, path, body = null, auth = true) {
 
   const data = await res.json()
   if (!res.ok) {
+    if (auth && res.status === 401) unauthorizedHandler?.()
+
     const message =
       data?.detail ||
       data?.non_field_errors?.[0] ||
