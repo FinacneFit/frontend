@@ -11,14 +11,24 @@ const selectedChoiceIndex = ref(null)
 
 const currentIndex    = computed(() => surveyStore.currentQuestionIndex)
 const questions       = computed(() => surveyStore.questions)
-const total           = computed(() => questions.value.length || 5)
+const total           = computed(() => questions.value.length)
 const currentQuestion = computed(() => questions.value[currentIndex.value])
 const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / total.value) * 100))
 const isFirst         = computed(() => currentIndex.value === 0)
 const isLast          = computed(() => currentIndex.value === total.value - 1)
 const canProceed      = computed(() => selectedChoiceIndex.value !== null)
 
-onMounted(() => surveyStore.loadQuestions())
+onMounted(async () => {
+  try {
+    await surveyStore.loadQuestions()
+  } catch (_) {}
+})
+
+async function retryLoad() {
+  try {
+    await surveyStore.loadQuestions(true)
+  } catch (_) {}
+}
 
 watch(
   currentIndex,
@@ -54,6 +64,12 @@ function goNext() {
 <template>
   <AuthSurveyLayout :wide="true">
     <div class="question-body">
+      <div v-if="surveyStore.isLoadingQuestions" class="state-message">설문 문항을 불러오는 중입니다.</div>
+      <div v-else-if="surveyStore.questionError" class="state-message error-message">
+        <p>{{ surveyStore.questionError }}</p>
+        <button class="btn-retry" @click="retryLoad">다시 시도</button>
+      </div>
+      <template v-else-if="currentQuestion">
       <!-- 진행률 -->
       <div class="progress-header">
         <span class="progress-label">{{ currentIndex + 1 }} / {{ total }}</span>
@@ -86,6 +102,7 @@ function goNext() {
           {{ isLast ? '완료' : '다음' }} &gt;
         </button>
       </div>
+      </template>
     </div>
   </AuthSurveyLayout>
 </template>
@@ -95,6 +112,24 @@ function goNext() {
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.state-message {
+  padding: 48px 0;
+  text-align: center;
+  color: #787878;
+}
+
+.error-message { color: #dc2626; }
+
+.btn-retry {
+  margin-top: 16px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #1b78fd;
+  color: #fff;
+  cursor: pointer;
 }
 
 /* 진행률 */
