@@ -10,6 +10,7 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
 import logoImg from '@/assets/logo.png'
 import AppHeader from '@/components/AppHeader.vue'
+import ProfileImageCropModal from '@/components/ProfileImageCropModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -23,6 +24,60 @@ const nickname = computed(() => authStore.user?.nickname ?? '사용자')
 const resultType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '미설정')
 const riskScore = computed(() => authStore.user?.risk_score || surveyStore.riskScore || 0)
 const initial = computed(() => nickname.value.charAt(0))
+const profileImage = computed(() => authStore.user?.profile_image ?? '')
+const profileInput = ref(null)
+const isProfileUploading = ref(false)
+const profileImageError = ref('')
+const cropFile = ref(null)
+
+function openProfileImagePicker() {
+  profileInput.value?.click()
+}
+
+async function changeProfileImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    profileImageError.value = 'JPEG, PNG, WebP 이미지만 선택할 수 있습니다.'
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    profileImageError.value = '프로필 이미지는 5MB 이하여야 합니다.'
+    return
+  }
+  profileImageError.value = ''
+  cropFile.value = file
+}
+
+function cancelProfileCrop() {
+  cropFile.value = null
+}
+
+async function applyProfileCrop(file) {
+  isProfileUploading.value = true
+  profileImageError.value = ''
+  try {
+    await authStore.updateProfileImage(file)
+    cropFile.value = null
+  } catch (error) {
+    profileImageError.value = error.message || '프로필 이미지 변경에 실패했습니다.'
+  } finally {
+    isProfileUploading.value = false
+  }
+}
+
+async function removeProfileImage() {
+  isProfileUploading.value = true
+  profileImageError.value = ''
+  try {
+    await authStore.removeProfileImage()
+  } catch (error) {
+    profileImageError.value = error.message || '프로필 이미지 삭제에 실패했습니다.'
+  } finally {
+    isProfileUploading.value = false
+  }
+}
 
 const scoreBarWidth = computed(() => {
   const pct = Math.round(((riskScore.value - 15) / 105) * 100)
@@ -248,9 +303,31 @@ onMounted(() => {
         <div class="banner" />
 
         <div class="avatar-row">
-          <UserAvatar :nickname="nickname" size="xl" class="profile-avatar" />
+          <div class="profile-avatar-wrap">
+            <UserAvatar :nickname="nickname" :image-url="profileImage" size="xl" class="profile-avatar" />
+            <button
+              class="avatar-edit-btn"
+              type="button"
+              :disabled="isProfileUploading"
+              aria-label="프로필 사진 변경"
+              @click="openProfileImagePicker"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8.5 6 10 4h4l1.5 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5Z" />
+                <circle cx="12" cy="12.5" r="3.5" />
+              </svg>
+            </button>
+            <input
+              ref="profileInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="file-input"
+              @change="changeProfileImage"
+            />
+          </div>
           <span class="profile-nickname">{{ nickname }}</span>
         </div>
+        <p v-if="profileImageError" class="profile-image-error">{{ profileImageError }}</p>
 
         <div class="follow-counts">
           <button
@@ -613,7 +690,7 @@ onMounted(() => {
             class="user-card"
             @click="openProfile(user.id)"
           >
-            <UserAvatar :nickname="user.nickname" size="md" />
+            <UserAvatar :nickname="user.nickname" :image-url="user.profileImage" size="md" />
 
             <div class="user-card-info">
               <p class="user-card-name">{{ user.nickname }}</p>
@@ -642,7 +719,7 @@ onMounted(() => {
             class="user-card"
             @click="openProfile(user.id)"
           >
-            <UserAvatar :nickname="user.nickname" size="md" />
+            <UserAvatar :nickname="user.nickname" :image-url="user.profileImage" size="md" />
 
             <div class="user-card-info">
               <p class="user-card-name">{{ user.nickname }}</p>
@@ -669,6 +746,13 @@ onMounted(() => {
       v-if="selectedUserId !== null"
       :userId="selectedUserId"
       @close="closeProfile"
+    />
+
+    <ProfileImageCropModal
+      v-if="cropFile"
+      :file="cropFile"
+      @confirm="applyProfileCrop"
+      @cancel="cancelProfileCrop"
     />
   </div>
 </template>
@@ -822,6 +906,12 @@ onMounted(() => {
   border: 3px solid #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
+.profile-avatar-wrap { position: relative; flex-shrink: 0; }
+.avatar-edit-btn { position: absolute; right: -2px; bottom: -2px; width: 29px; height: 29px; display: flex; align-items: center; justify-content: center; padding: 0; border: 2px solid #fff; border-radius: 50%; background: #1b78fd; color: #fff; cursor: pointer; }
+.avatar-edit-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.avatar-edit-btn:disabled { opacity: 0.6; cursor: wait; }
+.file-input { display: none; }
+.profile-image-error { margin: 6px 24px 0 118px; max-width: 300px; color: #ef4444; font-size: 11px; }
 
 .profile-nickname {
   font-weight: 800;

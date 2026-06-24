@@ -30,9 +30,12 @@
           <span class="user-type">{{ resultType }}</span>
         </div>
 
-        <div class="avatar">
-          {{ initial }}
-        </div>
+        <UserAvatar
+          :nickname="nickname"
+          :image-url="authStore.user?.profile_image ?? ''"
+          size="md"
+          class="header-avatar"
+        />
       </button>
     </div>
   </header>
@@ -42,6 +45,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import UserAvatar from '@/components/UserAvatar.vue'
 import logoImg from '@/assets/logo.png'
 
 const router = useRouter()
@@ -50,7 +54,6 @@ const authStore = useAuthStore()
 
 const nickname = computed(() => authStore.user?.nickname ?? '사용자')
 const resultType = computed(() => authStore.user?.investment_type || '성향 미설정')
-const initial = computed(() => nickname.value.charAt(0))
 
 const navItems = [
   {
@@ -202,18 +205,7 @@ function logout() {
   color: #787878;
 }
 
-.avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1b78fd, #2adbc6);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.header-avatar { width: 38px; height: 38px; }
 
 @media (max-width: 900px) {
   .app-header {
