@@ -23,7 +23,7 @@ const initial  = computed(() => nickname.value.charAt(0))
 const riskType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '')
 const hasType  = computed(() => !!riskType.value)
 
-const form          = reactive({ title: '', content: '', attachStocks: false, attachDeposits: false })
+const form          = reactive({ title: '', content: '', attachStocks: false, attachDeposits: false, showReturns: true })
 const errors        = reactive({ title: '', content: '' })
 // sessionStorage에서 복원한 경우에만 true — 새로 타이핑 중엔 false
 const draftRestored = ref(false)
@@ -33,12 +33,13 @@ onMounted(async () => {
   const saved = sessionStorage.getItem(DRAFT_KEY)
   if (saved) {
     try {
-      const { title, content, attachStocks, attachDeposits } = JSON.parse(saved)
+      const { title, content, attachStocks, attachDeposits, showReturns } = JSON.parse(saved)
       if (title || content) {
         form.title      = title   ?? ''
         form.content    = content ?? ''
         form.attachStocks = !!attachStocks
         form.attachDeposits = !!attachDeposits
+        form.showReturns = showReturns !== false
         draftRestored.value = true
       }
     } catch (_) {}
@@ -57,6 +58,7 @@ watch(form, (val) => {
       content: val.content,
       attachStocks: val.attachStocks,
       attachDeposits: val.attachDeposits,
+      showReturns: val.showReturns,
     }))
   } else {
     sessionStorage.removeItem(DRAFT_KEY)
@@ -68,6 +70,7 @@ function clearDraft() {
   form.content = ''
   form.attachStocks = false
   form.attachDeposits = false
+  form.showReturns = true
   sessionStorage.removeItem(DRAFT_KEY)
   draftRestored.value = false
 }
@@ -89,6 +92,7 @@ async function submit() {
       riskType: riskType.value,
       attachStocks: form.attachStocks,
       attachDeposits: form.attachDeposits,
+      showReturns: form.showReturns,
     })
     sessionStorage.removeItem(DRAFT_KEY)
     router.push('/community')
@@ -150,6 +154,11 @@ async function submit() {
                   <span>주식 포트폴리오</span>
                   <small>{{ portfolioStore.holdings.length ? `${portfolioStore.holdings.length}개 종목` : '보유 종목 없음' }}</small>
                 </label>
+                <label v-if="form.attachStocks" class="picker-option sub-option">
+                  <input v-model="form.showReturns" type="checkbox" />
+                  <span>수익률 공개</span>
+                  <small>선택하지 않으면 차트 아래 종목 목록이 숨겨집니다.</small>
+                </label>
                 <label class="picker-option" :class="{ disabled: !depositStore.savedDeposits.length }">
                   <input v-model="form.attachDeposits" type="checkbox" :disabled="!depositStore.savedDeposits.length" />
                   <span>예·적금 포트폴리오</span>
@@ -160,6 +169,7 @@ async function submit() {
                   class="portfolio-preview"
                   :preview-stocks="form.attachStocks ? portfolioStore.holdings : []"
                   :preview-deposits="form.attachDeposits ? depositStore.savedDeposits : []"
+                  :show-returns="form.showReturns"
                 />
                 <p class="snapshot-hint">등록 시점의 포트폴리오가 저장되며 이후 자산 변경은 게시글에 반영되지 않습니다.</p>
               </div>
@@ -320,6 +330,7 @@ async function submit() {
 .picker-option { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px; cursor: pointer; }
 .picker-option small { margin-left: auto; color: #6b7280; }
 .picker-option.disabled { color: #9ca3af; cursor: default; }
+.picker-option.sub-option { margin-left: 22px; padding: 6px 10px; border-left: 2px solid #bfdbfe; }
 .portfolio-preview { margin-top: 12px; }
 .snapshot-hint { margin-top: 10px; font-size: 11px; color: #6b7280; }
 
