@@ -1,14 +1,15 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 async function request(method, path, body = null, auth = true) {
-  const headers = { 'Content-Type': 'application/json' }
+  const isFormData = body instanceof FormData
+  const headers = isFormData ? {} : { 'Content-Type': 'application/json' }
   if (auth) {
     const token = localStorage.getItem('finfit_token')
     if (token) headers['Authorization'] = `Token ${token}`
   }
 
   const config = { method, headers }
-  if (body !== null) config.body = JSON.stringify(body)
+  if (body !== null) config.body = isFormData ? body : JSON.stringify(body)
 
   const res = await fetch(`${BASE_URL}${path}`, config)
 

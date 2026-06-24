@@ -79,6 +79,18 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async updateProfileImage(file) {
+      const user = await authApi.uploadProfileImage(file)
+      this.user = user
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
+    },
+
+    async removeProfileImage() {
+      const user = await authApi.removeProfileImage()
+      this.user = user
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
+    },
+
     async refreshMe() {
       if (!this.token) return
       try {

@@ -6,12 +6,21 @@ const props = defineProps({
   snapshot: { type: Object, default: () => ({}) },
   previewStocks: { type: Array, default: () => [] },
   previewDeposits: { type: Array, default: () => [] },
+  showReturns: { type: Boolean, default: true },
+  showReturnsOverride: { default: null },
 })
 
 const stocks = computed(() => props.snapshot?.stocks?.items ?? props.previewStocks)
 const deposits = computed(() => props.snapshot?.deposits?.items ?? props.previewDeposits)
 const stockSummary = computed(() => props.snapshot?.stocks ?? null)
 const depositSummary = computed(() => props.snapshot?.deposits ?? null)
+const returnsVisible = computed(() =>
+  props.showReturnsOverride !== null
+    ? props.showReturnsOverride
+    : props.snapshot?.stocks
+    ? props.snapshot.stocks.show_returns !== false
+    : props.showReturns
+)
 const chartHoldings = computed(() => stocks.value.map((stock) => {
   const currentPrice = Number(stock.current_price ?? stock.currentPrice ?? 0)
   const buyPrice = Number(stock.buy_price ?? stock.buyPrice ?? 0)
@@ -40,15 +49,19 @@ function rate(value) {
     <section v-if="stocks.length" class="portfolio-section">
       <div class="section-heading">
         <strong>주식 포트폴리오</strong>
-        <span v-if="stockSummary">수익률 {{ stockSummary.return_rate >= 0 ? '+' : '' }}{{ stockSummary.return_rate }}%</span>
+        <span v-if="stockSummary && returnsVisible">수익률 {{ stockSummary.return_rate >= 0 ? '+' : '' }}{{ stockSummary.return_rate }}%</span>
       </div>
       <PortfolioAllocationChart
         class="snapshot-chart"
         :holdings="chartHoldings"
         title="보유 종목 비중"
       />
-      <div class="asset-list">
-        <div v-for="(stock, index) in stocks" :key="stock.code ?? stock.id" class="asset-row stock-row">
+      <div v-if="returnsVisible" class="asset-list">
+        <div
+          v-for="(stock, index) in stocks"
+          :key="stock.code ?? stock.id"
+          class="asset-row stock-row"
+        >
           <div>
             <p class="asset-name">{{ stock.name }}</p>
             <p class="asset-meta">{{ stock.code }}</p>
@@ -95,7 +108,7 @@ function rate(value) {
 .portfolio-card { display: flex; flex-direction: column; gap: 14px; }
 .portfolio-section { border: 1px solid #dbeafe; border-radius: 12px; overflow: hidden; background: #fff; }
 .section-heading { display: flex; justify-content: space-between; padding: 11px 14px; background: #eff6ff; color: #1d4ed8; font-size: 13px; }
-.asset-list { padding: 0 14px; }
+.asset-list { max-height: 260px; overflow-y: auto; padding: 0 14px; }
 .asset-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f3f4f6; }
 .stock-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px 80px; }
 .asset-row:last-child { border-bottom: none; }

@@ -86,19 +86,26 @@ export const useCommunityStore = defineStore('community', {
       }
     },
 
-    async createPost({ title, content, riskType, attachStocks = false, attachDeposits = false }) {
+    async createPost({ title, content, riskType, attachStocks = false, attachDeposits = false, showReturns = true }) {
       const data = await communityApi.createPost({
         title,
         content,
         risk_type: riskType,
         attach_stock_portfolio: attachStocks,
         attach_deposit_portfolio: attachDeposits,
+        show_portfolio_returns: showReturns,
       })
       this.posts.unshift(mapPost(data))
     },
 
-    async updatePost(postId, { title, content }) {
-      const data = await communityApi.updatePost(postId, { title, content })
+    async updatePost(postId, { title, content, attachStocks, attachDeposits, showReturns }) {
+      const data = await communityApi.updatePost(postId, {
+        title,
+        content,
+        attach_stock_portfolio: attachStocks,
+        attach_deposit_portfolio: attachDeposits,
+        show_portfolio_returns: showReturns,
+      })
       const idx  = this.posts.findIndex((p) => p.id === postId)
       if (idx >= 0) this.posts[idx] = mapPost(data)
     },

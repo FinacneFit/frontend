@@ -3,23 +3,48 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
+import { usePortfolioStore } from '@/stores/portfolioStore'
+import { useDepositStore } from '@/stores/depositStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
+import CommunityPortfolioCard from '@/components/CommunityPortfolioCard.vue'
 
 const route          = useRoute()
 const router         = useRouter()
 const communityStore = useCommunityStore()
 const authStore      = useAuthStore()
+const portfolioStore = usePortfolioStore()
+const depositStore = useDepositStore()
 
 const postId  = Number(route.params.postId)
 const post    = computed(() => communityStore.getPost(postId))
+const editSnapshot = computed(() => {
+  const snapshot = {}
+  if (form.attachStocks && post.value?.portfolioSnapshot?.stocks) {
+    snapshot.stocks = post.value.portfolioSnapshot.stocks
+  }
+  if (form.attachDeposits && post.value?.portfolioSnapshot?.deposits) {
+    snapshot.deposits = post.value.portfolioSnapshot.deposits
+  }
+  return snapshot
+})
 
-const form   = reactive({ title: '', content: '' })
+const form = reactive({
+  title: '',
+  content: '',
+  attachStocks: false,
+  attachDeposits: false,
+  showReturns: true,
+})
 const errors = reactive({ title: '', content: '' })
 const loaded = ref(false)
 const blocked = ref(false)
 
 onMounted(async () => {
-  if (!post.value) await communityStore.loadPost(postId)
+  await Promise.allSettled([
+    communityStore.loadPost(postId),
+    portfolioStore.loadPortfolio(),
+    depositStore.loadSavedProducts(),
+  ])
   if (post.value) {
     if (post.value.riskType !== authStore.user?.investment_type) {
       blocked.value = true
@@ -27,6 +52,9 @@ onMounted(async () => {
     }
     form.title   = post.value.title
     form.content = post.value.content
+    form.attachStocks = !!post.value.portfolioSnapshot?.stocks
+    form.attachDeposits = !!post.value.portfolioSnapshot?.deposits
+    form.showReturns = post.value.portfolioSnapshot?.stocks?.show_returns !== false
     loaded.value = true
   }
 })
@@ -44,6 +72,9 @@ async function submit() {
     await communityStore.updatePost(postId, {
       title:   form.title.trim(),
       content: form.content.trim(),
+      attachStocks: form.attachStocks,
+      attachDeposits: form.attachDeposits,
+      showReturns: form.showReturns,
     })
     router.push(`/community/${postId}`)
   } catch {
@@ -81,6 +112,34 @@ async function submit() {
                 placeholder="제목을 입력하세요"
               />
               <p v-if="errors.title" class="error-text">{{ errors.title }}</p>
+            </div>
+
+            <div class="portfolio-picker">
+              <p class="picker-title">내 포트폴리오 첨부</p>
+              <label class="picker-option" :class="{ disabled: !portfolioStore.holdings.length && !form.attachStocks }">
+                <input v-model="form.attachStocks" type="checkbox" :disabled="!portfolioStore.holdings.length && !form.attachStocks" />
+                <span>주식 포트폴리오</span>
+                <small>{{ portfolioStore.holdings.length ? `${portfolioStore.holdings.length}개 종목` : '보유 종목 없음' }}</small>
+              </label>
+              <label v-if="form.attachStocks" class="picker-option sub-option">
+                <input v-model="form.showReturns" type="checkbox" />
+                <span>수익률 공개</span>
+                <small>선택하지 않으면 차트 아래 종목 목록이 숨겨집니다.</small>
+              </label>
+              <label class="picker-option" :class="{ disabled: !depositStore.savedDeposits.length && !form.attachDeposits }">
+                <input v-model="form.attachDeposits" type="checkbox" :disabled="!depositStore.savedDeposits.length && !form.attachDeposits" />
+                <span>예·적금 포트폴리오</span>
+                <small>{{ depositStore.savedDeposits.length ? `${depositStore.savedDeposits.length}개 상품` : '담은 상품 없음' }}</small>
+              </label>
+              <CommunityPortfolioCard
+                v-if="form.attachStocks || form.attachDeposits"
+                class="portfolio-preview"
+                :snapshot="editSnapshot"
+                :preview-stocks="form.attachStocks ? portfolioStore.holdings : []"
+                :preview-deposits="form.attachDeposits ? depositStore.savedDeposits : []"
+                :show-returns-override="form.showReturns"
+              />
+              <p class="snapshot-hint">기존 첨부는 작성 당시 값이 유지되며, 새로 추가한 포트폴리오만 현재 값으로 저장됩니다.</p>
             </div>
           </div>
 
@@ -153,9 +212,9 @@ async function submit() {
 .title-input:focus { border-color: #1b78fd; }
 .title-input.error { border-color: #ef4444; }
 
-.content-group { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; min-height: 0; padding-bottom: 16px; }
+.content-group { flex: 0 0 auto; display: flex; flex-direction: column; margin-bottom: 0; min-height: 360px; padding-bottom: 16px; }
 .content-input {
-  flex: 1; width: 100%; min-height: 0; resize: none;
+  flex: 1; width: 100%; min-height: 320px; resize: vertical;
   border: 1px solid #e5e7eb; border-radius: 10px;
   padding: 14px 16px; font-family: 'Noto Sans KR', sans-serif; font-size: 15px;
   outline: none; line-height: 1.6; box-sizing: border-box;
@@ -164,6 +223,15 @@ async function submit() {
 .content-input.error { border-color: #ef4444; }
 
 .error-text { font-size: 12px; color: #ef4444; margin-top: 4px; flex-shrink: 0; }
+
+.portfolio-picker { margin: 14px 0 18px; padding: 14px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+.picker-title { margin-bottom: 10px; font-size: 14px; font-weight: 700; }
+.picker-option { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px; cursor: pointer; }
+.picker-option small { margin-left: auto; color: #6b7280; }
+.picker-option.disabled { color: #9ca3af; cursor: default; }
+.picker-option.sub-option { margin-left: 22px; padding: 6px 10px; border-left: 2px solid #bfdbfe; }
+.portfolio-preview { margin-top: 12px; }
+.snapshot-hint { margin-top: 10px; font-size: 11px; color: #6b7280; }
 
 .edit-footer {
   display: flex; justify-content: flex-end; gap: 10px;

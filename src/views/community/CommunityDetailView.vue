@@ -14,6 +14,20 @@ const communityStore = useCommunityStore()
 const authStore      = useAuthStore()
 
 const post = computed(() => communityStore.getPost(route.params.postId))
+const bodyExpanded = ref(false)
+const BODY_PREVIEW_LENGTH = 300
+const BODY_PREVIEW_LINES = 20
+const collapsedBody = computed(() => {
+  const content = post.value?.content ?? ''
+  const lineLimited = content.split(/\r?\n/).slice(0, BODY_PREVIEW_LINES).join('\n')
+  return lineLimited.slice(0, BODY_PREVIEW_LENGTH)
+})
+const isLongBody = computed(() => collapsedBody.value.length < (post.value?.content.length ?? 0))
+const displayedBody = computed(() =>
+  bodyExpanded.value || !isLongBody.value
+    ? (post.value?.content ?? '')
+    : `${collapsedBody.value}…`
+)
 
 onMounted(() => communityStore.loadPost(Number(route.params.postId)))
 
@@ -124,18 +138,33 @@ function closeProfile() { selectedUserId.value = null }
             </div>
           </div>
 
-          <div class="post-body">{{ post.content }}</div>
           <CommunityPortfolioCard
             v-if="Object.keys(post.portfolioSnapshot ?? {}).length"
             class="attached-portfolio"
             :snapshot="post.portfolioSnapshot"
           />
+          <div class="post-body">
+            <div>{{ displayedBody }}</div>
+            <button
+              v-if="isLongBody"
+              class="btn-more"
+              @click="bodyExpanded = !bodyExpanded"
+            >{{ bodyExpanded ? '접기' : '더보기' }}</button>
+          </div>
 
           <div class="reaction-row">
             <button class="like-btn" :class="{ liked: post.liked }" @click="toggleLike">
-              {{ post.liked ? '♥' : '♡' }} {{ post.likes }}
+              <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 20.4 4.7 13.7C.8 10.1 3.5 4 8.6 4c1.5 0 2.7.7 3.4 1.8C12.7 4.7 13.9 4 15.4 4c5.1 0 7.8 6.1 3.9 9.7L12 20.4Z" />
+              </svg>
+              <span>{{ post.likes }}</span>
             </button>
-            <span class="comment-count">💬 {{ commentTotal }}</span>
+            <span class="comment-count">
+              <svg class="comment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.4-.7L4 20l1.5-4A7.4 7.4 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" />
+              </svg>
+              <span>{{ commentTotal }}</span>
+            </span>
           </div>
 
           <hr class="divider" />
@@ -284,13 +313,18 @@ function closeProfile() { selectedUserId.value = null }
   font-family: 'Noto Sans KR', sans-serif; font-size: 14px; line-height: 1.7;
   white-space: pre-wrap; word-break: keep-all; margin-bottom: 16px;
 }
+.btn-more { display: block; margin: 14px auto 0; border: none; background: none; color: #1b78fd; font-weight: 700; cursor: pointer; }
 .attached-portfolio { margin-bottom: 16px; }
 
 .reaction-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.like-btn { background: none; border: none; font-size: 16px; cursor: pointer; color: #9ca3af; }
+.like-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; font-size: 14px; cursor: pointer; color: #9ca3af; }
+.heart-icon { width: 22px; height: 22px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; transition: fill 0.15s, color 0.15s, transform 0.15s; }
 .like-btn.liked { color: #ef4444; }
-.like-btn:hover { color: #ef4444; }
-.comment-count { font-size: 14px; color: #9ca3af; }
+.like-btn.liked .heart-icon { fill: currentColor; }
+.like-btn:hover .heart-icon { color: #ef4444; transform: scale(1.08); }
+.comment-count { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: #9ca3af; }
+.comment-icon { width: 22px; height: 22px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: color 0.15s, transform 0.15s; }
+.comment-count:hover .comment-icon { color: #1b78fd; transform: scale(1.08); }
 .divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
 
 .comments-heading { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 12px; }
@@ -338,7 +372,6 @@ function closeProfile() { selectedUserId.value = null }
 }
 .act-btn:hover { color: #374151; }
 .act-btn.del:hover { color: #ef4444; }
-.act-btn.reply { color: #1b78fd; }
 
 .reply-input-wrap { display: flex; gap: 6px; margin: 8px 0 0 38px; }
 .reply-input { flex: 1; height: 36px; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0 10px; outline: none; }

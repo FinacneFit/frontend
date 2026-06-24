@@ -25,6 +25,7 @@ const targetUser = computed(() => {
       id:             authStore.user.id,
       nickname:       authStore.user.nickname    ?? '사용자',
       bio:            authStore.user.bio         ?? '',
+      profileImage:   authStore.user.profile_image ?? '',
       investmentType: authStore.user.investment_type ?? '미설정',
       followerCount:  followStore.followerCount,
       followingCount: followStore.followingCount,
@@ -56,6 +57,7 @@ onMounted(async () => {
         id:             u.id,
         nickname:       u.nickname,
         bio:            u.bio            ?? '',
+        profileImage:   u.profile_image  ?? '',
         investmentType: u.investment_type ?? '미설정',
         followerCount:  u.follower_count  ?? 0,
         followingCount: u.following_count ?? 0,
@@ -78,7 +80,7 @@ onUnmounted(() => {
       <template v-if="targetUser">
         <!-- 아바타 + 닉네임 -->
         <div class="profile-head">
-          <UserAvatar :nickname="targetUser.nickname" size="xl" />
+          <UserAvatar :nickname="targetUser.nickname" :image-url="targetUser.profileImage" size="xl" />
           <h2 class="nickname">{{ targetUser.nickname }}</h2>
           <p class="follow-counts">
             팔로워 <strong>{{ targetUser.followerCount ?? 0 }}</strong>
