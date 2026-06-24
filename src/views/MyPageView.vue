@@ -224,6 +224,34 @@ function closeProfile() {
   selectedUserId.value = null
 }
 
+const showRetestModal = ref(false)
+
+const canRetakeSurvey = computed(() => {
+  const lastDate = authStore.user?.last_survey_date
+  if (!lastDate) return true
+  const next = new Date(lastDate)
+  next.setDate(next.getDate() + 30)
+  return new Date() >= next
+})
+
+const nextSurveyDate = computed(() => {
+  const lastDate = authStore.user?.last_survey_date
+  if (!lastDate) return ''
+  const next = new Date(lastDate)
+  next.setDate(next.getDate() + 30)
+  return `${next.getFullYear()}년 ${next.getMonth() + 1}월 ${next.getDate()}일`
+})
+
+function goToResurvey() {
+  surveyStore.reset()
+  router.push('/survey/intro')
+}
+
+function confirmRetest() {
+  showRetestModal.value = false
+  goToResurvey()
+}
+
 function logout() {
   authStore.logout()
   router.push('/login')
@@ -332,22 +360,20 @@ onMounted(() => {
 
       <!-- ② 투자 성향 -->
       <section class="info-section">
-        <h3 class="section-heading">투자 성향</h3>
+        <div class="tendency-header">
+          <h3 class="section-heading" style="margin:0">투자 성향</h3>
+          <button
+            class="btn-retest"
+            type="button"
+            :disabled="!canRetakeSurvey"
+            :title="canRetakeSurvey ? '재검사하기' : `${nextSurveyDate}부터 재검사 가능합니다`"
+            @click="showRetestModal = true"
+          >
+            {{ canRetakeSurvey ? '재검사' : '30일 제한' }}
+          </button>
+        </div>
 
         <div class="tendency-row">
-          <div class="tendency-icon">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect width="28" height="28" rx="8" fill="url(#grad)" />
-              <circle cx="14" cy="14" r="6" stroke="#fff" stroke-width="2.2" fill="none" />
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="28" y2="28">
-                  <stop offset="0%" stop-color="#1b78fd" />
-                  <stop offset="100%" stop-color="#2adbc6" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
           <div class="tendency-info">
             <div class="tendency-title-row">
               <span class="tendency-type">{{ resultType }}</span>
@@ -670,6 +696,73 @@ onMounted(() => {
       :userId="selectedUserId"
       @close="closeProfile"
     />
+
+    <!-- 재검사 확인 모달 -->
+    <div v-if="showRetestModal" class="modal-overlay" @click.self="showRetestModal = false">
+      <div class="modal-card">
+
+        <div class="modal-header">
+          <div class="modal-header-icon">📋</div>
+          <div>
+            <h3 class="modal-title">투자 성향 재검사</h3>
+            <p class="modal-subtitle">시작 전 아래 내용을 확인해주세요</p>
+          </div>
+          <button class="modal-close" type="button" @click="showRetestModal = false">✕</button>
+        </div>
+
+        <div class="modal-notices">
+          <div class="modal-notice-item notice-blue">
+            <span class="notice-icon">📅</span>
+            <div class="notice-body">
+              <p class="notice-label">검사 주기 제한</p>
+              <p class="notice-text">
+                성향 검사는 <strong>30일에 한 번</strong>만 가능합니다.<br />
+                재검사 후 다음 가능일은 <strong>{{ nextSurveyDate || '30일 뒤' }}</strong>입니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="modal-notice-item notice-orange">
+            <span class="notice-icon">⚠️</span>
+            <div class="notice-body">
+              <p class="notice-label">기존 점수 초기화</p>
+              <p class="notice-text">
+                이전 성향 점수는 <strong>저장되지 않으며</strong> 재검사 결과로 즉시 덮어씌워집니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="modal-notice-item notice-teal">
+            <span class="notice-icon">📊</span>
+            <div class="notice-body">
+              <p class="notice-label">추천 종목 변경</p>
+              <p class="notice-text">
+                재검사 결과에 따라 <strong>추천 종목이 변경</strong>될 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="modal-notice-item notice-red">
+            <span class="notice-icon">🚫</span>
+            <div class="notice-body">
+              <p class="notice-label">커뮤니티 글 수정 불가</p>
+              <p class="notice-text">
+                성향 변경 후에는 <strong>이전 성향으로 작성한 글을 수정할 수 없습니다.</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn-cancel" type="button" @click="showRetestModal = false">
+            취소
+          </button>
+          <button class="modal-btn-confirm" type="button" @click="confirmRetest">
+            재검사 시작
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1004,15 +1097,43 @@ onMounted(() => {
   margin: 0 0 16px;
 }
 
+.tendency-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.btn-retest {
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid #1b78fd;
+  border-radius: 9999px;
+  background: #fff;
+  color: #1b78fd;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-retest:hover:not(:disabled) {
+  background: #1b78fd;
+  color: #fff;
+}
+
+.btn-retest:disabled {
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .tendency-row {
   display: flex;
   align-items: flex-start;
   gap: 14px;
   margin-bottom: 18px;
-}
-
-.tendency-icon {
-  flex-shrink: 0;
 }
 
 .tendency-info {
@@ -1385,6 +1506,166 @@ onMounted(() => {
 .deposit-remove-placeholder {
   flex-shrink: 0;
   width: 58px;
+}
+
+/* ── 재검사 확인 모달 ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.modal-header-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 3px 0 0;
+}
+
+.modal-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  color: #374151;
+}
+
+.modal-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+}
+
+.modal-notice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border-left: 4px solid transparent;
+}
+
+.notice-blue   { background: #eff6ff; border-left-color: #1b78fd; }
+.notice-orange { background: #fff7ed; border-left-color: #f97316; }
+.notice-teal   { background: #f0fdfa; border-left-color: #2adbc6; }
+.notice-red    { background: #fff1f2; border-left-color: #ef4444; }
+
+.notice-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notice-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+}
+
+.notice-text {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.notice-text strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px 20px;
+}
+
+.modal-btn-cancel {
+  flex: 1;
+  height: 46px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.modal-btn-cancel:hover {
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.modal-btn-confirm {
+  flex: 2;
+  height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1b78fd, #2adbc6);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  box-shadow: 0 4px 14px rgba(27, 120, 253, 0.3);
+}
+
+.modal-btn-confirm:hover {
+  opacity: 0.88;
 }
 
 /* ── 통합 자산 카드 ── */

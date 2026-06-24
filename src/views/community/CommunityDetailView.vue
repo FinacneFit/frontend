@@ -114,7 +114,12 @@ function closeProfile() { selectedUserId.value = null }
 
             <!-- 작성자 전용 수정/삭제 -->
             <div v-if="post.authorId === myId" class="post-actions">
-              <button class="btn-edit" @click="router.push(`/community/${post.id}/edit`)">수정</button>
+              <button
+                class="btn-edit"
+                :disabled="post.riskType !== authStore.user?.investment_type"
+                :title="post.riskType !== authStore.user?.investment_type ? '성향이 변경되어 수정할 수 없습니다' : ''"
+                @click="router.push(`/community/${post.id}/edit`)"
+              >수정</button>
               <button class="btn-delete-post" @click="deletePost">삭제</button>
             </div>
           </div>
@@ -265,7 +270,8 @@ function closeProfile() { selectedUserId.value = null }
   padding: 4px 12px; font-size: 12px; color: #374151;
   font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
 }
-.btn-edit:hover { border-color: #1b78fd; color: #1b78fd; }
+.btn-edit:hover:not(:disabled) { border-color: #1b78fd; color: #1b78fd; }
+.btn-edit:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-delete-post {
   background: none; border: 1px solid #fca5a5; border-radius: 8px;
   padding: 4px 12px; font-size: 12px; color: #ef4444;

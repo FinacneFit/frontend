@@ -2,11 +2,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
+import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
 
 const route          = useRoute()
 const router         = useRouter()
 const communityStore = useCommunityStore()
+const authStore      = useAuthStore()
 
 const postId  = Number(route.params.postId)
 const post    = computed(() => communityStore.getPost(postId))
@@ -14,10 +16,15 @@ const post    = computed(() => communityStore.getPost(postId))
 const form   = reactive({ title: '', content: '' })
 const errors = reactive({ title: '', content: '' })
 const loaded = ref(false)
+const blocked = ref(false)
 
 onMounted(async () => {
   if (!post.value) await communityStore.loadPost(postId)
   if (post.value) {
+    if (post.value.riskType !== authStore.user?.investment_type) {
+      blocked.value = true
+      return
+    }
     form.title   = post.value.title
     form.content = post.value.content
     loaded.value = true
@@ -47,7 +54,14 @@ async function submit() {
 
 <template>
   <CommunityLayout>
-    <div class="edit-shell">
+    <div v-if="blocked" class="blocked-wrap">
+      <p class="blocked-icon">🚫</p>
+      <p class="blocked-title">수정할 수 없는 게시글입니다</p>
+      <p class="blocked-desc">투자 성향이 변경되어 이 게시글을 수정할 수 없습니다.</p>
+      <button class="blocked-btn" @click="router.push(`/community/${postId}`)">돌아가기</button>
+    </div>
+
+    <div v-else class="edit-shell">
       <div class="edit-scroll">
         <div class="edit-wrap">
           <div class="form-header">
@@ -91,6 +105,20 @@ async function submit() {
 </template>
 
 <style scoped>
+.blocked-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 10px; padding: 40px;
+}
+.blocked-icon { font-size: 40px; margin: 0; }
+.blocked-title { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 18px; color: #111827; margin: 0; }
+.blocked-desc { font-family: 'Noto Sans KR', sans-serif; font-size: 14px; color: #6b7280; margin: 0; text-align: center; }
+.blocked-btn {
+  margin-top: 8px; height: 40px; padding: 0 24px;
+  background: #1b78fd; color: #fff; border: none; border-radius: 10px;
+  font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.blocked-btn:hover { opacity: 0.88; }
+
 .edit-shell { display: flex; flex-direction: column; height: 100%; }
 .edit-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
 .edit-wrap { flex: 1; display: flex; flex-direction: column; padding: 24px 32px 0; min-height: 0; }
