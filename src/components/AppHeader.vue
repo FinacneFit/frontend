@@ -91,6 +91,9 @@ async function logout() {
 
 <style scoped>
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   height: 68px;
   border-bottom: 1px solid #000;
   display: flex;
