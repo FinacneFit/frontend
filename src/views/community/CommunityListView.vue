@@ -6,7 +6,7 @@ import { useSurveyStore } from '@/stores/surveyStore'
 import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
-import profileImg from '@/assets/profile.svg'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router         = useRouter()
 const communityStore = useCommunityStore()
@@ -56,12 +56,32 @@ function closeProfile() { selectedUserId.value = null }
           </div>
           <div class="post-meta">
             <div class="author-row" @click.stop="openProfile(post.authorId)">
-              <img :src="profileImg" class="mini-avatar" alt="profile" />
+              <UserAvatar
+                :nickname="post.author"
+                :image-url="post.authorProfileImage"
+                size="sm"
+                class="mini-avatar"
+              />
               <span class="author-name">{{ post.author }}</span>
             </div>
-            <div class="meta-stats">
-              <span>♡ {{ post.likes }}</span>
-              <span>💬 {{ post.comments.length }}</span>
+            <div class="meta-stats" @click.stop>
+              <button
+                class="like-btn"
+                :class="{ liked: post.liked }"
+                :aria-label="post.liked ? '좋아요 취소' : '좋아요'"
+                @click="communityStore.toggleLike(post.id)"
+              >
+                <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20.4 4.7 13.7C.8 10.1 3.5 4 8.6 4c1.5 0 2.7.7 3.4 1.8C12.7 4.7 13.9 4 15.4 4c5.1 0 7.8 6.1 3.9 9.7L12 20.4Z" />
+                </svg>
+                <span>{{ post.likes }}</span>
+              </button>
+              <span class="comment-count">
+                <svg class="comment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.4-.7L4 20l1.5-4A7.4 7.4 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" />
+                </svg>
+                <span>{{ post.commentCount }}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -138,6 +158,13 @@ function closeProfile() { selectedUserId.value = null }
   flex-shrink: 0;
 }
 .author-name { font-size: 12px; font-family: 'Noto Sans KR', sans-serif; }
-.meta-stats { display: flex; gap: 10px; font-size: 12px; color: #787878; }
+.meta-stats { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #9ca3af; }
+.like-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font-size: 12px; }
+.heart-icon { width: 18px; height: 18px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; transition: fill 0.15s, color 0.15s, transform 0.15s; }
+.like-btn.liked { color: #ef4444; }
+.like-btn.liked .heart-icon { fill: currentColor; }
+.like-btn:hover .heart-icon { color: #ef4444; transform: scale(1.08); }
+.comment-count { display: inline-flex; align-items: center; gap: 4px; }
+.comment-icon { width: 18px; height: 18px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .empty { color: #9ca3af; text-align: center; margin-top: 40px; font-size: 14px; }
 </style>

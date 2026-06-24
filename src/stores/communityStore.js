@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { communityApi } from '@/api/communityApi'
 
 function mapPost(p) {
+  const comments = (p.comments ?? []).map(mapComment)
   return {
     id:            p.id,
     title:         p.title,
@@ -11,10 +12,11 @@ function mapPost(p) {
     author:        p.author_nickname ?? p.author ?? '알 수 없음',
     authorInitial: (p.author_nickname ?? p.author ?? '?').charAt(0),
     authorId:      p.author_id,
+    authorProfileImage: p.author_profile_image ?? null,
     likes:         p.likes         ?? 0,
     liked:         p.liked         ?? false,
-    commentCount:  p.comment_count ?? 0,
-    comments:      (p.comments     ?? []).map(mapComment),
+    commentCount:  p.comment_count ?? countComments(comments),
+    comments,
     createdAt:     p.created_at,
   }
 }
@@ -26,6 +28,7 @@ function mapComment(c) {
     author:   c.author_nickname ?? c.author ?? '알 수 없음',
     initial:  (c.author_nickname ?? c.author ?? '?').charAt(0),
     authorId: c.author_id,
+    authorProfileImage: c.author_profile_image ?? null,
     parentId: c.parent_id ?? null,
     replies:  (c.replies ?? []).map(mapComment),
   }

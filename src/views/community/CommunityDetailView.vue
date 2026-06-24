@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
 import CommunityPortfolioCard from '@/components/CommunityPortfolioCard.vue'
-import profileImg from '@/assets/profile.svg'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const route          = useRoute()
 const router         = useRouter()
@@ -120,7 +120,7 @@ function closeProfile() { selectedUserId.value = null }
 
           <div class="author-row">
             <button class="author-btn" @click="openProfile(post.authorId)">
-              <img :src="profileImg" class="avatar-sm" alt="profile" />
+              <UserAvatar :nickname="post.author" :image-url="post.authorProfileImage" size="sm" />
               <span class="author-name">{{ post.author }}</span>
             </button>
             <span class="risk-badge">{{ post.riskType }}</span>
@@ -174,7 +174,7 @@ function closeProfile() { selectedUserId.value = null }
             <div v-for="c in post.comments" :key="c.id" class="comment-thread">
               <div class="comment-item">
               <button class="avatar-btn" @click="openProfile(c.authorId)">
-                <img :src="profileImg" class="avatar-sm" alt="profile" />
+                <UserAvatar :nickname="c.author" :image-url="c.authorProfileImage" size="sm" />
               </button>
               <div class="comment-body">
                 <div class="comment-author-row">
@@ -220,7 +220,7 @@ function closeProfile() { selectedUserId.value = null }
                 <div v-for="reply in c.replies" :key="reply.id" class="comment-item reply-item">
                   <span class="reply-arrow">↳</span>
                   <button class="avatar-btn" @click="openProfile(reply.authorId)">
-                    <img :src="profileImg" class="avatar-sm" alt="profile" />
+                    <UserAvatar :nickname="reply.author" :image-url="reply.authorProfileImage" size="sm" />
                   </button>
                   <div class="comment-body">
                     <div class="comment-author-row">
