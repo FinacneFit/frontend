@@ -2,7 +2,14 @@
 import { computed } from 'vue'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 
+const props = defineProps({
+  // 전달하지 않으면 기존처럼 메인 포트폴리오 스토어를 사용한다.
+  holdings: { type: Array, default: null },
+  title: { type: String, default: '보유 종목 비중' },
+})
+
 const portfolioStore = usePortfolioStore()
+const sourceHoldings = computed(() => props.holdings ?? portfolioStore.holdingsWithStats)
 
 const COLORS   = ['#1b78fd', '#2adbc6', '#8b5cf6', '#f59e0b']
 const GRAY     = '#9ca3af'
@@ -18,7 +25,7 @@ const GAP = 3         // 세그먼트 간 간격 (SVG 단위)
 
 // ── 평가금액 기준 비중 데이터 (내림차순) ──
 const allocationChartData = computed(() => {
-  const stats = portfolioStore.holdingsWithStats
+  const stats = sourceHoldings.value
   if (!stats.length) return []
   const total = stats.reduce((s, h) => s + h.value, 0)
   if (total === 0) return []
@@ -77,7 +84,7 @@ const segments = computed(() => {
   })
 })
 
-const hasData = computed(() => portfolioStore.holdingsWithStats.length > 0)
+const hasData = computed(() => sourceHoldings.value.length > 0)
 const topItem = computed(() => allocationChartData.value[0] ?? null)
 
 function fmtPct(v) { return (v ?? 0).toFixed(1) + '%' }
@@ -86,7 +93,7 @@ function fmtAmt(n) { return Number(n).toLocaleString() + '원' }
 
 <template>
   <div class="chart-wrap">
-    <p class="chart-title"><span class="title-dot" />보유 종목 비중</p>
+    <p class="chart-title"><span class="title-dot" />{{ title }}</p>
 
     <div v-if="!hasData" class="empty-state">아직 보유 종목이 없습니다.</div>
 

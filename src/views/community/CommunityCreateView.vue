@@ -4,7 +4,10 @@ import { useRouter } from 'vue-router'
 import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
+import { usePortfolioStore } from '@/stores/portfolioStore'
+import { useDepositStore } from '@/stores/depositStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
+import CommunityPortfolioCard from '@/components/CommunityPortfolioCard.vue'
 
 const DRAFT_KEY = 'community_draft'
 
@@ -12,36 +15,49 @@ const router = useRouter()
 const communityStore = useCommunityStore()
 const authStore = useAuthStore()
 const surveyStore = useSurveyStore()
+const portfolioStore = usePortfolioStore()
+const depositStore = useDepositStore()
 
 const nickname = computed(() => authStore.user?.nickname ?? '사용자')
 const initial  = computed(() => nickname.value.charAt(0))
 const riskType = computed(() => authStore.user?.investment_type || surveyStore.resultType || '')
 const hasType  = computed(() => !!riskType.value)
 
-const form          = reactive({ title: '', content: '' })
+const form          = reactive({ title: '', content: '', attachStocks: false, attachDeposits: false })
 const errors        = reactive({ title: '', content: '' })
 // sessionStorage에서 복원한 경우에만 true — 새로 타이핑 중엔 false
 const draftRestored = ref(false)
 
 // ── 마운트 시 임시저장 복원 ──
-onMounted(() => {
+onMounted(async () => {
   const saved = sessionStorage.getItem(DRAFT_KEY)
   if (saved) {
     try {
-      const { title, content } = JSON.parse(saved)
+      const { title, content, attachStocks, attachDeposits } = JSON.parse(saved)
       if (title || content) {
         form.title      = title   ?? ''
         form.content    = content ?? ''
+        form.attachStocks = !!attachStocks
+        form.attachDeposits = !!attachDeposits
         draftRestored.value = true
       }
     } catch (_) {}
   }
+  await Promise.allSettled([
+    portfolioStore.loadPortfolio(),
+    depositStore.loadSavedProducts(),
+  ])
 })
 
 // ── 입력마다 sessionStorage 자동 저장 (배너와 무관) ──
 watch(form, (val) => {
   if (val.title || val.content) {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ title: val.title, content: val.content }))
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+      title: val.title,
+      content: val.content,
+      attachStocks: val.attachStocks,
+      attachDeposits: val.attachDeposits,
+    }))
   } else {
     sessionStorage.removeItem(DRAFT_KEY)
   }
@@ -50,6 +66,8 @@ watch(form, (val) => {
 function clearDraft() {
   form.title = ''
   form.content = ''
+  form.attachStocks = false
+  form.attachDeposits = false
   sessionStorage.removeItem(DRAFT_KEY)
   draftRestored.value = false
 }
@@ -69,6 +87,8 @@ async function submit() {
       title:    form.title.trim(),
       content:  form.content.trim(),
       riskType: riskType.value,
+      attachStocks: form.attachStocks,
+      attachDeposits: form.attachDeposits,
     })
     sessionStorage.removeItem(DRAFT_KEY)
     router.push('/community')
@@ -121,6 +141,27 @@ async function submit() {
                   placeholder="제목을 입력하세요"
                 />
                 <p v-if="errors.title" class="error-text">{{ errors.title }}</p>
+              </div>
+
+              <div class="portfolio-picker">
+                <p class="picker-title">내 포트폴리오 첨부</p>
+                <label class="picker-option" :class="{ disabled: !portfolioStore.holdings.length }">
+                  <input v-model="form.attachStocks" type="checkbox" :disabled="!portfolioStore.holdings.length" />
+                  <span>주식 포트폴리오</span>
+                  <small>{{ portfolioStore.holdings.length ? `${portfolioStore.holdings.length}개 종목` : '보유 종목 없음' }}</small>
+                </label>
+                <label class="picker-option" :class="{ disabled: !depositStore.savedDeposits.length }">
+                  <input v-model="form.attachDeposits" type="checkbox" :disabled="!depositStore.savedDeposits.length" />
+                  <span>예·적금 포트폴리오</span>
+                  <small>{{ depositStore.savedDeposits.length ? `${depositStore.savedDeposits.length}개 상품` : '담은 상품 없음' }}</small>
+                </label>
+                <CommunityPortfolioCard
+                  v-if="form.attachStocks || form.attachDeposits"
+                  class="portfolio-preview"
+                  :preview-stocks="form.attachStocks ? portfolioStore.holdings : []"
+                  :preview-deposits="form.attachDeposits ? depositStore.savedDeposits : []"
+                />
+                <p class="snapshot-hint">등록 시점의 포트폴리오가 저장되며 이후 자산 변경은 게시글에 반영되지 않습니다.</p>
               </div>
             </div>
 
@@ -273,6 +314,14 @@ async function submit() {
 .content-input.error { border-color: #ef4444; }
 
 .error-text { font-size: 12px; color: #ef4444; margin-top: 4px; flex-shrink: 0; }
+
+.portfolio-picker { margin: 14px 0 18px; padding: 14px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+.picker-title { margin-bottom: 10px; font-size: 14px; font-weight: 700; }
+.picker-option { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px; cursor: pointer; }
+.picker-option small { margin-left: auto; color: #6b7280; }
+.picker-option.disabled { color: #9ca3af; cursor: default; }
+.portfolio-preview { margin-top: 12px; }
+.snapshot-hint { margin-top: 10px; font-size: 11px; color: #6b7280; }
 
 /* ── 푸터 ── */
 .create-footer {

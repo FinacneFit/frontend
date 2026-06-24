@@ -6,6 +6,7 @@ function mapPost(p) {
     id:            p.id,
     title:         p.title,
     content:       p.content,
+    portfolioSnapshot: p.portfolio_snapshot ?? {},
     riskType:      p.risk_type,
     author:        p.author_nickname ?? p.author ?? '알 수 없음',
     authorInitial: (p.author_nickname ?? p.author ?? '?').charAt(0),
@@ -70,8 +71,14 @@ export const useCommunityStore = defineStore('community', {
       }
     },
 
-    async createPost({ title, content, riskType, ..._ }) {
-      const data = await communityApi.createPost({ title, content, risk_type: riskType })
+    async createPost({ title, content, riskType, attachStocks = false, attachDeposits = false }) {
+      const data = await communityApi.createPost({
+        title,
+        content,
+        risk_type: riskType,
+        attach_stock_portfolio: attachStocks,
+        attach_deposit_portfolio: attachDeposits,
+      })
       this.posts.unshift(mapPost(data))
     },
 

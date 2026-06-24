@@ -50,6 +50,10 @@ function closeProfile() { selectedUserId.value = null }
         >
           <p class="post-title">{{ post.title }}</p>
           <p class="post-content">{{ post.content }}</p>
+          <div v-if="Object.keys(post.portfolioSnapshot ?? {}).length" class="portfolio-badges">
+            <span v-if="post.portfolioSnapshot.stocks">주식 {{ post.portfolioSnapshot.stocks.items.length }}종목</span>
+            <span v-if="post.portfolioSnapshot.deposits">예·적금 {{ post.portfolioSnapshot.deposits.items.length }}개</span>
+          </div>
           <div class="post-meta">
             <div class="author-row" @click.stop="openProfile(post.authorId)">
               <img :src="profileImg" class="mini-avatar" alt="profile" />
@@ -116,6 +120,8 @@ function closeProfile() { selectedUserId.value = null }
   overflow: hidden;
   flex: 1;
 }
+.portfolio-badges { display: flex; gap: 6px; }
+.portfolio-badges span { padding: 3px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; }
 .post-meta {
   display: flex;
   justify-content: space-between;

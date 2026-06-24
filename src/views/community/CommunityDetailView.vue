@@ -5,6 +5,7 @@ import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
+import CommunityPortfolioCard from '@/components/CommunityPortfolioCard.vue'
 import profileImg from '@/assets/profile.svg'
 
 const route          = useRoute()
@@ -99,6 +100,11 @@ function closeProfile() { selectedUserId.value = null }
           </div>
 
           <div class="post-body">{{ post.content }}</div>
+          <CommunityPortfolioCard
+            v-if="Object.keys(post.portfolioSnapshot ?? {}).length"
+            class="attached-portfolio"
+            :snapshot="post.portfolioSnapshot"
+          />
 
           <div class="reaction-row">
             <button class="like-btn" :class="{ liked: post.liked }" @click="toggleLike">
@@ -207,6 +213,7 @@ function closeProfile() { selectedUserId.value = null }
   font-family: 'Noto Sans KR', sans-serif; font-size: 14px; line-height: 1.7;
   white-space: pre-wrap; word-break: keep-all; margin-bottom: 16px;
 }
+.attached-portfolio { margin-bottom: 16px; }
 
 .reaction-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .like-btn { background: none; border: none; font-size: 16px; cursor: pointer; color: #9ca3af; }
