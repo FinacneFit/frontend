@@ -5,6 +5,7 @@ import { useCommunityStore } from '@/stores/communityStore'
 import { useAuthStore } from '@/stores/authStore'
 import CommunityLayout from '@/layouts/CommunityLayout.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
+import CommunityPortfolioCard from '@/components/CommunityPortfolioCard.vue'
 import profileImg from '@/assets/profile.svg'
 
 const route          = useRoute()
@@ -13,10 +14,26 @@ const communityStore = useCommunityStore()
 const authStore      = useAuthStore()
 
 const post = computed(() => communityStore.getPost(route.params.postId))
+const bodyExpanded = ref(false)
+const BODY_PREVIEW_LENGTH = 300
+const BODY_PREVIEW_LINES = 20
+const collapsedBody = computed(() => {
+  const content = post.value?.content ?? ''
+  const lineLimited = content.split(/\r?\n/).slice(0, BODY_PREVIEW_LINES).join('\n')
+  return lineLimited.slice(0, BODY_PREVIEW_LENGTH)
+})
+const isLongBody = computed(() => collapsedBody.value.length < (post.value?.content.length ?? 0))
+const displayedBody = computed(() =>
+  bodyExpanded.value || !isLongBody.value
+    ? (post.value?.content ?? '')
+    : `${collapsedBody.value}…`
+)
 
 onMounted(() => communityStore.loadPost(Number(route.params.postId)))
 
 const commentText = ref('')
+const replyingToId = ref(null)
+const replyText = ref('')
 const myId        = computed(() => authStore.user?.id ?? null)
 const nickname    = computed(() => authStore.user?.nickname ?? '')
 const initial     = computed(() => nickname.value.charAt(0))
@@ -48,9 +65,27 @@ function toggleLike() {
 function addComment() {
   const text = commentText.value.trim()
   if (!text || !post.value) return
-  communityStore.addComment(post.value.id, text, nickname.value, initial.value, myId.value)
+  communityStore.addComment(post.value.id, text)
   commentText.value = ''
 }
+
+function startReply(commentId) {
+  replyingToId.value = replyingToId.value === commentId ? null : commentId
+  replyText.value = ''
+}
+
+async function addReply(parentId) {
+  const text = replyText.value.trim()
+  if (!text || !post.value) return
+  await communityStore.addComment(post.value.id, text, parentId)
+  replyingToId.value = null
+  replyText.value = ''
+}
+
+const commentTotal = computed(() => post.value?.comments.reduce(
+  (total, comment) => total + 1 + comment.replies.length,
+  0,
+) ?? 0)
 
 function deleteComment(commentId) {
   if (!post.value) return
@@ -93,25 +128,51 @@ function closeProfile() { selectedUserId.value = null }
 
             <!-- 작성자 전용 수정/삭제 -->
             <div v-if="post.authorId === myId" class="post-actions">
-              <button class="btn-edit" @click="router.push(`/community/${post.id}/edit`)">수정</button>
+              <button
+                class="btn-edit"
+                :disabled="post.riskType !== authStore.user?.investment_type"
+                :title="post.riskType !== authStore.user?.investment_type ? '성향이 변경되어 수정할 수 없습니다' : ''"
+                @click="router.push(`/community/${post.id}/edit`)"
+              >수정</button>
               <button class="btn-delete-post" @click="deletePost">삭제</button>
             </div>
           </div>
 
-          <div class="post-body">{{ post.content }}</div>
+          <CommunityPortfolioCard
+            v-if="Object.keys(post.portfolioSnapshot ?? {}).length"
+            class="attached-portfolio"
+            :snapshot="post.portfolioSnapshot"
+          />
+          <div class="post-body">
+            <div>{{ displayedBody }}</div>
+            <button
+              v-if="isLongBody"
+              class="btn-more"
+              @click="bodyExpanded = !bodyExpanded"
+            >{{ bodyExpanded ? '접기' : '더보기' }}</button>
+          </div>
 
           <div class="reaction-row">
             <button class="like-btn" :class="{ liked: post.liked }" @click="toggleLike">
-              {{ post.liked ? '♥' : '♡' }} {{ post.likes }}
+              <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 20.4 4.7 13.7C.8 10.1 3.5 4 8.6 4c1.5 0 2.7.7 3.4 1.8C12.7 4.7 13.9 4 15.4 4c5.1 0 7.8 6.1 3.9 9.7L12 20.4Z" />
+              </svg>
+              <span>{{ post.likes }}</span>
             </button>
-            <span class="comment-count">💬 {{ post.comments.length }}</span>
+            <span class="comment-count">
+              <svg class="comment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.4-.7L4 20l1.5-4A7.4 7.4 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" />
+              </svg>
+              <span>{{ commentTotal }}</span>
+            </span>
           </div>
 
           <hr class="divider" />
 
-          <p class="comments-heading">댓글 {{ post.comments.length }}</p>
+          <p class="comments-heading">댓글 {{ commentTotal }}</p>
           <div class="comment-list">
-            <div v-for="c in post.comments" :key="c.id" class="comment-item">
+            <div v-for="c in post.comments" :key="c.id" class="comment-thread">
+              <div class="comment-item">
               <button class="avatar-btn" @click="openProfile(c.authorId)">
                 <img :src="profileImg" class="avatar-sm" alt="profile" />
               </button>
@@ -137,10 +198,54 @@ function closeProfile() { selectedUserId.value = null }
                 <p v-else class="comment-text">{{ c.text }}</p>
               </div>
 
-              <!-- 내 댓글 수정/삭제 -->
-              <div v-if="c.authorId === myId && editingCommentId !== c.id" class="comment-actions">
-                <button class="act-btn" @click="startEditComment(c)">수정</button>
-                <button class="act-btn del" @click="deleteComment(c.id)">삭제</button>
+              <div v-if="editingCommentId !== c.id" class="comment-actions">
+                <button class="act-btn reply" @click="startReply(c.id)">답글</button>
+                <button v-if="c.authorId === myId" class="act-btn" @click="startEditComment(c)">수정</button>
+                <button v-if="c.authorId === myId" class="act-btn del" @click="deleteComment(c.id)">삭제</button>
+              </div>
+              </div>
+
+              <div v-if="replyingToId === c.id" class="reply-input-wrap">
+                <input
+                  v-model="replyText"
+                  class="reply-input"
+                  :placeholder="`${c.author}님에게 답글 작성`"
+                  @keydown.enter="addReply(c.id)"
+                />
+                <button class="btn-reply-submit" @click="addReply(c.id)">등록</button>
+                <button class="btn-reply-cancel" @click="startReply(c.id)">취소</button>
+              </div>
+
+              <div v-if="c.replies.length" class="reply-list">
+                <div v-for="reply in c.replies" :key="reply.id" class="comment-item reply-item">
+                  <span class="reply-arrow">↳</span>
+                  <button class="avatar-btn" @click="openProfile(reply.authorId)">
+                    <img :src="profileImg" class="avatar-sm" alt="profile" />
+                  </button>
+                  <div class="comment-body">
+                    <div class="comment-author-row">
+                      <button class="comment-author-btn" @click="openProfile(reply.authorId)">{{ reply.author }}</button>
+                      <span v-if="reply.authorId === post.authorId" class="author-badge">작성자</span>
+                    </div>
+                    <template v-if="editingCommentId === reply.id">
+                      <textarea
+                        v-model="editingCommentText"
+                        class="comment-edit-input"
+                        rows="2"
+                        @keydown.enter.ctrl="submitEditComment(reply.id)"
+                      />
+                      <div class="comment-edit-btns">
+                        <button class="btn-save-comment" @click="submitEditComment(reply.id)">저장</button>
+                        <button class="btn-cancel-comment" @click="cancelEditComment">취소</button>
+                      </div>
+                    </template>
+                    <p v-else class="comment-text">{{ reply.text }}</p>
+                  </div>
+                  <div v-if="reply.authorId === myId && editingCommentId !== reply.id" class="comment-actions">
+                    <button class="act-btn" @click="startEditComment(reply)">수정</button>
+                    <button class="act-btn del" @click="deleteComment(reply.id)">삭제</button>
+                  </div>
+                </div>
               </div>
             </div>
             <p v-if="!post.comments.length" class="no-comment">첫 댓글을 남겨보세요.</p>
@@ -194,7 +299,8 @@ function closeProfile() { selectedUserId.value = null }
   padding: 4px 12px; font-size: 12px; color: #374151;
   font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
 }
-.btn-edit:hover { border-color: #1b78fd; color: #1b78fd; }
+.btn-edit:hover:not(:disabled) { border-color: #1b78fd; color: #1b78fd; }
+.btn-edit:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-delete-post {
   background: none; border: 1px solid #fca5a5; border-radius: 8px;
   padding: 4px 12px; font-size: 12px; color: #ef4444;
@@ -207,12 +313,18 @@ function closeProfile() { selectedUserId.value = null }
   font-family: 'Noto Sans KR', sans-serif; font-size: 14px; line-height: 1.7;
   white-space: pre-wrap; word-break: keep-all; margin-bottom: 16px;
 }
+.btn-more { display: block; margin: 14px auto 0; border: none; background: none; color: #1b78fd; font-weight: 700; cursor: pointer; }
+.attached-portfolio { margin-bottom: 16px; }
 
 .reaction-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.like-btn { background: none; border: none; font-size: 16px; cursor: pointer; color: #9ca3af; }
+.like-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; font-size: 14px; cursor: pointer; color: #9ca3af; }
+.heart-icon { width: 22px; height: 22px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; transition: fill 0.15s, color 0.15s, transform 0.15s; }
 .like-btn.liked { color: #ef4444; }
-.like-btn:hover { color: #ef4444; }
-.comment-count { font-size: 14px; color: #9ca3af; }
+.like-btn.liked .heart-icon { fill: currentColor; }
+.like-btn:hover .heart-icon { color: #ef4444; transform: scale(1.08); }
+.comment-count { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: #9ca3af; }
+.comment-icon { width: 22px; height: 22px; fill: transparent; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: color 0.15s, transform 0.15s; }
+.comment-count:hover .comment-icon { color: #1b78fd; transform: scale(1.08); }
 .divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
 
 .comments-heading { font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 12px; }
@@ -260,6 +372,17 @@ function closeProfile() { selectedUserId.value = null }
 }
 .act-btn:hover { color: #374151; }
 .act-btn.del:hover { color: #ef4444; }
+
+.reply-input-wrap { display: flex; gap: 6px; margin: 8px 0 0 38px; }
+.reply-input { flex: 1; height: 36px; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0 10px; outline: none; }
+.reply-input:focus { border-color: #1b78fd; }
+.btn-reply-submit, .btn-reply-cancel { height: 36px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.btn-reply-submit { border: none; background: #1b78fd; color: #fff; }
+.btn-reply-cancel { border: 1px solid #d1d5db; background: #fff; color: #6b7280; }
+.reply-list { margin: 10px 0 0 34px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
+.reply-item { position: relative; }
+.reply-item + .reply-item { margin-top: 10px; }
+.reply-arrow { color: #9ca3af; font-size: 16px; flex-shrink: 0; }
 
 .no-comment { font-size: 13px; color: #9ca3af; text-align: center; padding: 20px; }
 .not-found { padding: 40px; text-align: center; color: #9ca3af; }

@@ -6,6 +6,7 @@ function mapPost(p) {
     id:            p.id,
     title:         p.title,
     content:       p.content,
+    portfolioSnapshot: p.portfolio_snapshot ?? {},
     riskType:      p.risk_type,
     author:        p.author_nickname ?? p.author ?? '알 수 없음',
     authorInitial: (p.author_nickname ?? p.author ?? '?').charAt(0),
@@ -25,7 +26,22 @@ function mapComment(c) {
     author:   c.author_nickname ?? c.author ?? '알 수 없음',
     initial:  (c.author_nickname ?? c.author ?? '?').charAt(0),
     authorId: c.author_id,
+    parentId: c.parent_id ?? null,
+    replies:  (c.replies ?? []).map(mapComment),
   }
+}
+
+function findComment(comments, id) {
+  for (const comment of comments) {
+    if (comment.id === id) return comment
+    const nested = findComment(comment.replies, id)
+    if (nested) return nested
+  }
+  return null
+}
+
+function countComments(comments) {
+  return comments.reduce((count, comment) => count + 1 + countComments(comment.replies), 0)
 }
 
 export const useCommunityStore = defineStore('community', {
@@ -70,13 +86,26 @@ export const useCommunityStore = defineStore('community', {
       }
     },
 
-    async createPost({ title, content, riskType, ..._ }) {
-      const data = await communityApi.createPost({ title, content, risk_type: riskType })
+    async createPost({ title, content, riskType, attachStocks = false, attachDeposits = false, showReturns = true }) {
+      const data = await communityApi.createPost({
+        title,
+        content,
+        risk_type: riskType,
+        attach_stock_portfolio: attachStocks,
+        attach_deposit_portfolio: attachDeposits,
+        show_portfolio_returns: showReturns,
+      })
       this.posts.unshift(mapPost(data))
     },
 
-    async updatePost(postId, { title, content }) {
-      const data = await communityApi.updatePost(postId, { title, content })
+    async updatePost(postId, { title, content, attachStocks, attachDeposits, showReturns }) {
+      const data = await communityApi.updatePost(postId, {
+        title,
+        content,
+        attach_stock_portfolio: attachStocks,
+        attach_deposit_portfolio: attachDeposits,
+        show_portfolio_returns: showReturns,
+      })
       const idx  = this.posts.findIndex((p) => p.id === postId)
       if (idx >= 0) this.posts[idx] = mapPost(data)
     },
@@ -102,19 +131,27 @@ export const useCommunityStore = defineStore('community', {
       }
     },
 
-    async addComment(postId, text, _author, _initial, _authorId) {
-      const data = await communityApi.addComment(postId, text)
+    async addComment(postId, text, parentId = null) {
+      const data = parentId === null
+        ? await communityApi.addComment(postId, text)
+        : await communityApi.addReply(postId, parentId, text)
       const post = this.posts.find((p) => p.id === postId)
       if (!post) return
-      post.comments.push(mapComment(data))
-      post.commentCount = post.comments.length
+      const comment = mapComment(data)
+      if (parentId === null) {
+        post.comments.push(comment)
+      } else {
+        const parent = findComment(post.comments, parentId)
+        if (parent) parent.replies.push(comment)
+      }
+      post.commentCount = countComments(post.comments)
     },
 
     async updateComment(postId, commentId, text) {
       const data    = await communityApi.updateComment(postId, commentId, text)
       const post    = this.posts.find((p) => p.id === postId)
       if (!post) return
-      const comment = post.comments.find((c) => c.id === commentId)
+      const comment = findComment(post.comments, commentId)
       if (comment) comment.text = data.text
     },
 
@@ -122,8 +159,12 @@ export const useCommunityStore = defineStore('community', {
       await communityApi.deleteComment(postId, commentId)
       const post = this.posts.find((p) => p.id === postId)
       if (!post) return
-      post.comments     = post.comments.filter((c) => c.id !== commentId)
-      post.commentCount = post.comments.length
+      const parent = post.comments.find((comment) =>
+        comment.replies.some((reply) => reply.id === commentId)
+      )
+      if (parent) parent.replies = parent.replies.filter((reply) => reply.id !== commentId)
+      else post.comments = post.comments.filter((comment) => comment.id !== commentId)
+      post.commentCount = countComments(post.comments)
     },
 
     setFilter(type) {

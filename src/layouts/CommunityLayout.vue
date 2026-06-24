@@ -143,14 +143,14 @@ function handleFilter(type) {
   display: flex;
   flex: 1;
   overflow: hidden;
-  max-width: 1480px;
+  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
 }
 
 /* ── 사이드바 ── */
 .comm-sidebar {
-  width: 280px;
+  width: 250px;
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;

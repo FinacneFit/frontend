@@ -1,6 +1,20 @@
 <script setup>
 import { ref, nextTick, watch } from 'vue'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useChatStore } from '@/stores/chatStore'
+
+marked.use({ gfm: true, breaks: true })
+
+function renderMd(text) {
+  if (!text) return ''
+  try {
+    const html = marked.parse(text, { async: false })
+    return DOMPurify.sanitize(typeof html === 'string' ? html : text)
+  } catch {
+    return text
+  }
+}
 
 const chatStore = useChatStore()
 const inputText = ref('')
@@ -55,7 +69,11 @@ watch(
         class="msg-row"
         :class="msg.role"
       >
-        <div class="bubble">{{ msg.text }}</div>
+        <div
+          class="bubble"
+          :class="{ 'md-body': msg.role === 'bot' }"
+          v-html="msg.role === 'bot' ? renderMd(msg.text) : msg.text"
+        />
       </div>
       <div v-if="chatStore.isTyping" class="msg-row bot">
         <div class="bubble typing">
@@ -138,9 +156,29 @@ watch(
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 13px;
   line-height: 1.5;
-  word-break: break-all;
+  word-break: break-word;
   overflow-wrap: break-word;
 }
+
+/* 봇 말풍선 마크다운 스타일 */
+.md-body :deep(p)          { margin: 0 0 6px; }
+.md-body :deep(p:last-child) { margin-bottom: 0; }
+.md-body :deep(strong)     { font-weight: 700; }
+.md-body :deep(em)         { font-style: italic; }
+.md-body :deep(ul),
+.md-body :deep(ol)         { margin: 4px 0 6px; padding-left: 18px; }
+.md-body :deep(li)         { margin-bottom: 2px; }
+.md-body :deep(h1),
+.md-body :deep(h2),
+.md-body :deep(h3)         { font-size: 13px; font-weight: 700; margin: 6px 0 4px; }
+.md-body :deep(code)       {
+  background: rgba(0,0,0,0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+.md-body :deep(hr)         { border: none; border-top: 1px solid rgba(0,0,0,0.12); margin: 6px 0; }
 .msg-row.user .bubble {
   background: #1b78fd;
   color: #fff;

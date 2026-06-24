@@ -6,6 +6,7 @@ function mapUser(u) {
     id:             u.id,
     nickname:       u.nickname,
     bio:            u.bio            ?? '',
+    profileImage:   u.profile_image  ?? '',
     investmentType: u.investment_type ?? '미설정',
     followerCount:  u.follower_count  ?? 0,
     followingCount: u.following_count ?? 0,
