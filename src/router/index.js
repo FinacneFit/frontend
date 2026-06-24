@@ -47,6 +47,9 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authStore = useAuthStore()
+  if (authStore.isLoggedIn && (to.path === '/login' || to.path === '/signup')) {
+    return { path: '/dashboard' }
+  }
   if (!authStore.isLoggedIn && !PUBLIC_PATHS.includes(to.path)) {
     return { path: '/login' }
   }
