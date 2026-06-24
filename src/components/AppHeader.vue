@@ -83,8 +83,8 @@ function isActive(path) {
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 
-function logout() {
-  authStore.logout()
+async function logout() {
+  await authStore.logout()
   router.push('/login')
 }
 </script>
