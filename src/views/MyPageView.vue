@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSurveyStore } from '@/stores/surveyStore'
@@ -225,6 +225,10 @@ function closeProfile() {
 }
 
 const showRetestModal = ref(false)
+
+watch(showRetestModal, (val) => {
+  document.body.style.overflow = val ? 'hidden' : ''
+})
 
 const canRetakeSurvey = computed(() => {
   const lastDate = authStore.user?.last_survey_date
