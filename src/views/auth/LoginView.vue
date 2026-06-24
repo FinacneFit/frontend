@@ -1,8 +1,10 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AuthSurveyLayout from '@/layouts/AuthSurveyLayout.vue'
 import { useAuthStore } from '@/stores/authStore'
+
+const SAVED_EMAIL_KEY = 'finfit_saved_email'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -19,6 +21,15 @@ const errors = reactive({
 })
 
 const isLoading = ref(false)
+const rememberEmail = ref(false)
+
+onMounted(() => {
+  const saved = localStorage.getItem(SAVED_EMAIL_KEY)
+  if (saved) {
+    form.email = saved
+    rememberEmail.value = true
+  }
+})
 
 function validate() {
   let valid = true
@@ -46,6 +57,11 @@ async function handleSubmit() {
   isLoading.value = true
   try {
     await authStore.login({ email: form.email, password: form.password })
+    if (rememberEmail.value) {
+      localStorage.setItem(SAVED_EMAIL_KEY, form.email)
+    } else {
+      localStorage.removeItem(SAVED_EMAIL_KEY)
+    }
     router.push('/dashboard')
   } catch (err) {
     errors.general = err.message
@@ -89,6 +105,14 @@ async function handleSubmit() {
         />
         <p v-if="errors.password" class="error-text">{{ errors.password }}</p>
         <p v-else class="hint-text">영어, 숫자를 포함하여 8자 이상으로 입력해주세요.</p>
+      </div>
+
+      <!-- 아이디 저장 -->
+      <div class="remember-row">
+        <label class="remember-label">
+          <input type="checkbox" v-model="rememberEmail" class="remember-checkbox" />
+          아이디 저장
+        </label>
       </div>
 
       <!-- 전체 에러 -->
@@ -267,5 +291,28 @@ async function handleSubmit() {
 
 .link-btn:hover {
   opacity: 0.75;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+}
+
+.remember-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  color: #6d6d6d;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #1b78fd;
 }
 </style>
