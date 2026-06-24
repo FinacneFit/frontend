@@ -294,18 +294,18 @@ async function submit() {
 
 /* 내용 textarea — 남은 높이를 모두 채움 */
 .content-group {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   margin-bottom: 0;
-  min-height: 0;
+  min-height: 360px;
   padding-bottom: 16px;
 }
 .content-input {
   flex: 1;
   width: 100%;
-  min-height: 0;
-  resize: none;
+  min-height: 320px;
+  resize: vertical;
   border: 1px solid #e5e7eb; border-radius: 10px;
   padding: 14px 16px; font-family: 'Noto Sans KR', sans-serif; font-size: 15px;
   outline: none; line-height: 1.6; box-sizing: border-box;

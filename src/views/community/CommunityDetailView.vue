@@ -18,6 +18,8 @@ const post = computed(() => communityStore.getPost(route.params.postId))
 onMounted(() => communityStore.loadPost(Number(route.params.postId)))
 
 const commentText = ref('')
+const replyingToId = ref(null)
+const replyText = ref('')
 const myId        = computed(() => authStore.user?.id ?? null)
 const nickname    = computed(() => authStore.user?.nickname ?? '')
 const initial     = computed(() => nickname.value.charAt(0))
@@ -49,9 +51,27 @@ function toggleLike() {
 function addComment() {
   const text = commentText.value.trim()
   if (!text || !post.value) return
-  communityStore.addComment(post.value.id, text, nickname.value, initial.value, myId.value)
+  communityStore.addComment(post.value.id, text)
   commentText.value = ''
 }
+
+function startReply(commentId) {
+  replyingToId.value = replyingToId.value === commentId ? null : commentId
+  replyText.value = ''
+}
+
+async function addReply(parentId) {
+  const text = replyText.value.trim()
+  if (!text || !post.value) return
+  await communityStore.addComment(post.value.id, text, parentId)
+  replyingToId.value = null
+  replyText.value = ''
+}
+
+const commentTotal = computed(() => post.value?.comments.reduce(
+  (total, comment) => total + 1 + comment.replies.length,
+  0,
+) ?? 0)
 
 function deleteComment(commentId) {
   if (!post.value) return
@@ -110,14 +130,15 @@ function closeProfile() { selectedUserId.value = null }
             <button class="like-btn" :class="{ liked: post.liked }" @click="toggleLike">
               {{ post.liked ? '♥' : '♡' }} {{ post.likes }}
             </button>
-            <span class="comment-count">💬 {{ post.comments.length }}</span>
+            <span class="comment-count">💬 {{ commentTotal }}</span>
           </div>
 
           <hr class="divider" />
 
-          <p class="comments-heading">댓글 {{ post.comments.length }}</p>
+          <p class="comments-heading">댓글 {{ commentTotal }}</p>
           <div class="comment-list">
-            <div v-for="c in post.comments" :key="c.id" class="comment-item">
+            <div v-for="c in post.comments" :key="c.id" class="comment-thread">
+              <div class="comment-item">
               <button class="avatar-btn" @click="openProfile(c.authorId)">
                 <img :src="profileImg" class="avatar-sm" alt="profile" />
               </button>
@@ -143,10 +164,54 @@ function closeProfile() { selectedUserId.value = null }
                 <p v-else class="comment-text">{{ c.text }}</p>
               </div>
 
-              <!-- 내 댓글 수정/삭제 -->
-              <div v-if="c.authorId === myId && editingCommentId !== c.id" class="comment-actions">
-                <button class="act-btn" @click="startEditComment(c)">수정</button>
-                <button class="act-btn del" @click="deleteComment(c.id)">삭제</button>
+              <div v-if="editingCommentId !== c.id" class="comment-actions">
+                <button class="act-btn reply" @click="startReply(c.id)">답글</button>
+                <button v-if="c.authorId === myId" class="act-btn" @click="startEditComment(c)">수정</button>
+                <button v-if="c.authorId === myId" class="act-btn del" @click="deleteComment(c.id)">삭제</button>
+              </div>
+              </div>
+
+              <div v-if="replyingToId === c.id" class="reply-input-wrap">
+                <input
+                  v-model="replyText"
+                  class="reply-input"
+                  :placeholder="`${c.author}님에게 답글 작성`"
+                  @keydown.enter="addReply(c.id)"
+                />
+                <button class="btn-reply-submit" @click="addReply(c.id)">등록</button>
+                <button class="btn-reply-cancel" @click="startReply(c.id)">취소</button>
+              </div>
+
+              <div v-if="c.replies.length" class="reply-list">
+                <div v-for="reply in c.replies" :key="reply.id" class="comment-item reply-item">
+                  <span class="reply-arrow">↳</span>
+                  <button class="avatar-btn" @click="openProfile(reply.authorId)">
+                    <img :src="profileImg" class="avatar-sm" alt="profile" />
+                  </button>
+                  <div class="comment-body">
+                    <div class="comment-author-row">
+                      <button class="comment-author-btn" @click="openProfile(reply.authorId)">{{ reply.author }}</button>
+                      <span v-if="reply.authorId === post.authorId" class="author-badge">작성자</span>
+                    </div>
+                    <template v-if="editingCommentId === reply.id">
+                      <textarea
+                        v-model="editingCommentText"
+                        class="comment-edit-input"
+                        rows="2"
+                        @keydown.enter.ctrl="submitEditComment(reply.id)"
+                      />
+                      <div class="comment-edit-btns">
+                        <button class="btn-save-comment" @click="submitEditComment(reply.id)">저장</button>
+                        <button class="btn-cancel-comment" @click="cancelEditComment">취소</button>
+                      </div>
+                    </template>
+                    <p v-else class="comment-text">{{ reply.text }}</p>
+                  </div>
+                  <div v-if="reply.authorId === myId && editingCommentId !== reply.id" class="comment-actions">
+                    <button class="act-btn" @click="startEditComment(reply)">수정</button>
+                    <button class="act-btn del" @click="deleteComment(reply.id)">삭제</button>
+                  </div>
+                </div>
               </div>
             </div>
             <p v-if="!post.comments.length" class="no-comment">첫 댓글을 남겨보세요.</p>
@@ -267,6 +332,18 @@ function closeProfile() { selectedUserId.value = null }
 }
 .act-btn:hover { color: #374151; }
 .act-btn.del:hover { color: #ef4444; }
+.act-btn.reply { color: #1b78fd; }
+
+.reply-input-wrap { display: flex; gap: 6px; margin: 8px 0 0 38px; }
+.reply-input { flex: 1; height: 36px; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0 10px; outline: none; }
+.reply-input:focus { border-color: #1b78fd; }
+.btn-reply-submit, .btn-reply-cancel { height: 36px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.btn-reply-submit { border: none; background: #1b78fd; color: #fff; }
+.btn-reply-cancel { border: 1px solid #d1d5db; background: #fff; color: #6b7280; }
+.reply-list { margin: 10px 0 0 34px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
+.reply-item { position: relative; }
+.reply-item + .reply-item { margin-top: 10px; }
+.reply-arrow { color: #9ca3af; font-size: 16px; flex-shrink: 0; }
 
 .no-comment { font-size: 13px; color: #9ca3af; text-align: center; padding: 20px; }
 .not-found { padding: 40px; text-align: center; color: #9ca3af; }
