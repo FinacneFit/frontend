@@ -17,8 +17,9 @@ import CommunityEditView from '@/views/community/CommunityEditView.vue'
 import DepositListView from '@/views/DepositListView.vue'
 import SpotAssetChartView from '@/views/SpotAssetChartView.vue'
 
-// 로그인 없이 접근 가능한 페이지
+// 로그인 없이 접근 가능한 페이지 (/ 는 로그인 상태에서 dashboard로 리다이렉트)
 const PUBLIC_PATHS = ['/', '/login', '/signup']
+const LOGGED_IN_REDIRECT_PATHS = ['/', '/login', '/signup']
 
 // 설문 완료 없이 접근 가능한 페이지 (로그인은 필요)
 const SURVEY_PATHS = ['/survey/intro', '/survey/question', '/survey/result/loading', '/survey/result']
@@ -48,13 +49,18 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
+
+  if (!authStore.isInitialized) {
+    await authStore.refreshMe()
+  }
+
   const isLoggedIn = authStore.isLoggedIn
   const hasSurvey = !!authStore.user?.investment_type
 
-  // 로그인 상태에서 /login, /signup 접근 시 /dashboard로 리다이렉트
-  if (isLoggedIn && (to.path === '/login' || to.path === '/signup')) {
+  // 로그인 상태에서 /, /login, /signup 접근 시 /dashboard로 리다이렉트
+  if (isLoggedIn && LOGGED_IN_REDIRECT_PATHS.includes(to.path)) {
     return { path: '/dashboard' }
   }
 
